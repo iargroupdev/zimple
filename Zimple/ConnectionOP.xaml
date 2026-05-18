@@ -1,0 +1,31 @@
+﻿<UserControl x:Class="Zimple.ConnectionOP"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Zimple"
+             mc:Ignorable="d" d:DesignWidth="800" Height="461">
+    <Grid x:Name="Grid" Background="White" HorizontalAlignment="Left" Width="833" Margin="0,0,0,10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+        <TextBox MaxLength="3" x:Name="ipPart1" BorderBrush="LightGray" BorderThickness="1" TextAlignment="Center" VerticalContentAlignment="Center" TextChanged="IpPart_TextChanged" PreviewTextInput="IpPart_PreviewTextInput" Text="192" Margin="22,35,0,0" HorizontalAlignment="Left" Width="39" Height="20" VerticalAlignment="Top" />
+        <TextBox MaxLength="3" x:Name="ipPart2" BorderBrush="LightGray" BorderThickness="1" TextAlignment="Center" VerticalContentAlignment="Center" TextChanged="IpPart_TextChanged" PreviewTextInput="IpPart_PreviewTextInput" Text="168" Margin="66,35,0,0" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Width="39"/>
+        <TextBox MaxLength="3" x:Name="ipPart3" BorderBrush="LightGray" BorderThickness="1" TextAlignment="Center" VerticalContentAlignment="Center" TextChanged="IpPart_TextChanged" PreviewTextInput="IpPart_PreviewTextInput" Text="10" Margin="108,35,0,0" HorizontalAlignment="Left" Width="39" Height="20" VerticalAlignment="Top" />
+        <TextBox MaxLength="3" x:Name="ipPart4" BorderBrush="LightGray" BorderThickness="1" TextAlignment="Center" VerticalContentAlignment="Center" TextChanged="IpPart_TextChanged" PreviewTextInput="IpPart_PreviewTextInput" Text="1" Margin="150,35,0,0" HorizontalAlignment="Left" Width="39" Height="20" VerticalAlignment="Top" />
+        <Button x:Name="connectButton" Content="Connect" Click="Connect_Click" Margin="200,35,534,396"/>
+        <CheckBox x:Name="rememberMeCheckBox" Content="Remember Me" Margin="28,0,624,327" Height="36" VerticalAlignment="Bottom"/>
+        <TextBox FontSize="12" Margin="323,64,26,264" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" x:Name="opNamesTextBox" BorderThickness="0" Background="Transparent" IsReadOnly="True" BorderBrush="#FF0E47F1"/>
+        <TabControl x:Name="debugTabControl"
+            HorizontalAlignment="Right"
+            Margin="0,197,55,58"
+            Width="757"/>
+        <Label Content="Debug" Margin="27,160,732,264"/>
+        <Label Content="OPnames" Margin="323,35,436,388"/>
+        <Ellipse Width="10" Height="10" Fill="Gray" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,62,0,0" x:Name="statusIndicator"/>
+        <TextBlock x:Name="connectionStatusText" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="50,58,0,0" Text="Disconnected" />
+    </Grid>
+
+
+
+</UserControl>

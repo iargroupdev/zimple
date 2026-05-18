@@ -1,0 +1,48 @@
+# Build output
+bin/
+obj/
+Zimple/bin/
+Zimple/obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# Visual Studio / .NET Framework local state
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.cache
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+
+# NuGet
+packages/
+*.nupkg
+project.assets.json
+project.nuget.cache
+
+# ClickOnce / publish output
+app.publish/
+*.application
+*.manifest
+
+# Logs and diagnostics
+Log/
+*.log
+*.log.*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Local secrets / signing material
+*.pfx
+*.snk
