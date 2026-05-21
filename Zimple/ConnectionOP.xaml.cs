@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.UI.WebControls;
@@ -41,6 +40,11 @@ namespace Zimple
         private static readonly TimeSpan TriggerScanInterval = TimeSpan.FromSeconds(1);
         private const int MaxOperationNames = 10;
         private const int MaxMeasurementDataItems = 100;
+        private const int HeavyTriggerValue = 8;
+        private const int MeasurementReadPauseEveryItems = 5;
+        private const int MeasurementReadPauseMilliseconds = 50;
+        private const int HeavyTriggerPostDelayMilliseconds = 1500;
+        private static readonly SemaphoreSlim heavyPlcRequestGate = new SemaphoreSlim(1, 1);
 
         private readonly System.Threading.SemaphoreSlim connectionGate = new System.Threading.SemaphoreSlim(1, 1);
         private DispatcherTimer checkConnectionTimer = new DispatcherTimer();
@@ -713,6 +717,7 @@ namespace Zimple
             if (!isConnected) return;
             if (isShuttingDown) return;
             if (isProcessingQueue) return;
+            if (!triggerQueue.IsEmpty) return;
             if (!triggerGate.Wait(0)) return; // evita reentrância do scan
 
             try
@@ -1352,6 +1357,10 @@ namespace Zimple
 
                             i++;
 
+                            if (i % MeasurementReadPauseEveryItems == 0 && i < LenghtMeasureData)
+                            {
+                                Thread.Sleep(MeasurementReadPauseMilliseconds);
+                            }
                         }
 
                         // Pass the measures list to the MES system
@@ -1359,15 +1368,8 @@ namespace Zimple
                         ErrorDetail errorDetail = mesIntegration.Serial_MoveOutAndTestResults(
                             station, serialNumber, result, groupId, groupVersion, measuresList.ToArray(), layer, checkMultiBoard);
 
-                        // After constructing the measuresList
-                        StringBuilder measurementDataString = new StringBuilder();
-                        foreach (var measure in measuresList)
-                        {
-                            measurementDataString.AppendFormat("HighLimit: {0}, LowLimit: {1}, MeasureKey: {2}, MeasureNotes: {3}, MeasureValue: {4}, Position: {5}, Result: {6}, Tolerance: {7}, UnitOfMeasure: {8};\n", measure.HighLimit, measure.LowLimit, measure.MeasureKey, measure.MeasureNotes, measure.MeasureValue, measure.Position, measure.Result.ToString(), measure.Tolerance, measure.UnitOfMeasure);
-                        }
-
-                        // Outputting the entire process for logging or debugging, with measurements details before error code and error description
-                        Dispatcher.Invoke(() => Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}. Measurement Data: {measurementDataString.ToString()} Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n"));
+                        // Keep the UI/file log compact; full measurement dumps add avoidable pressure during heavy PLC cycles.
+                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
 
                         // Optionally, write the results back to the PLC or perform other finalization actions
                         var responseTag = tagStore.GetStringArray($"{opName}.Response", 2);
@@ -1874,13 +1876,34 @@ namespace Zimple
                 if (triggerQueue.TryDequeue(out var item))
                 {
                     isProcessingQueue = true;
+                    bool heavyGateTaken = false;
 
                     try
                     {
+                        if (item.trigger == HeavyTriggerValue)
+                        {
+                            Log(item.opName, "Waiting for exclusive PLC heavy request slot.\n");
+                            await heavyPlcRequestGate.WaitAsync(cancellationToken);
+                            heavyGateTaken = true;
+                        }
+
                         ExecuteActionBasedOnTrigger(item.opName, item.trigger);
                     }
                     finally
                     {
+                        if (heavyGateTaken)
+                        {
+                            try
+                            {
+                                await Task.Delay(HeavyTriggerPostDelayMilliseconds, cancellationToken);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                            }
+
+                            heavyPlcRequestGate.Release();
+                        }
+
                         isProcessingQueue = false;
                     }
 

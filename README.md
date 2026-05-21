@@ -20,6 +20,7 @@ This version includes a stabilization pass focused on the recurring PLC communic
 - serialized PLC tag access inside `PlcTagStore`;
 - trigger scan slowed to a stable interval and protected against re-entry;
 - queued trigger worker is now started and cancelled with the UI lifecycle;
+- heavy `Serial_MoveOutAndTestResults` requests are serialized and paced to reduce PLC pressure;
 - heartbeat runs off the UI thread and skips while trigger execution is using the PLC;
 - PLC array reads/writes go through safe helpers;
 - measurement data length from PLC is bounded;

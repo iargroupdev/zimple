@@ -14,11 +14,14 @@
 
 - `PlcTagStore` now serializes tag creation/read/write/dispose per PLC instance.
 - Trigger scanning now runs every 1 second and skips while queued work is executing.
+- Trigger scanning also pauses while queued work is waiting, so the app does not keep polling PLC tags when there is already work to execute.
+- `Serial_MoveOutAndTestResults` is treated as a heavy PLC request: only one runs at a time across the app, measurement reads pause briefly every 5 rows, and the app leaves a short recovery gap after the request.
 - The trigger queue starts on control load and is cancelled on unload.
 - Heartbeat is asynchronous and skips while queued work is executing.
 - PLC string arrays are read/written through `PlcTagStore` helpers.
 - Measurement data is capped at 100 entries.
 - Login logs exclude password values.
+- Heavy measurement logs now record measurement count instead of dumping every measurement field into the UI/file log.
 - Binding redirect generation is enabled in the project.
 - Git is configured to ignore generated output and local sensitive files.
 
