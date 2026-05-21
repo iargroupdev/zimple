@@ -4,7 +4,14 @@ WPF/.NET Framework 4.7.2 application for PLC communication and MES integration.
 
 ## Build
 
-Open `Zimple.sln` on Windows with Visual Studio 2022, restore NuGet packages if prompted, then run `Clean Solution` and `Rebuild Solution`.
+1. Download the repository ZIP from GitHub and extract it.
+2. Open `Zimple.sln` on Windows with Visual Studio 2022.
+3. If Visual Studio asks, restore NuGet packages.
+4. Run `Build > Clean Solution`.
+5. Run `Build > Rebuild Solution`.
+6. Start the `Zimple` project.
+
+The MES/runtime DLLs required by this project are included under `Zimple/Lib/net462`, so the solution does not depend on a local `Downloads\MES_HAI...` folder.
 
 ## Current stabilization
 

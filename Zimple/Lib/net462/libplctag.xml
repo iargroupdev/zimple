@@ -1,0 +1,699 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>libplctag</name>
+    </assembly>
+    <members>
+        <member name="M:libplctag.DataTypes.Extensions.ArrayExtensions.To1DArray``1(``0[0:,0:])">
+            <summary>
+            Extension method to flatten a 2D array to a 1D array
+            </summary>
+            <typeparam name="T">Array Type</typeparam>
+            <param name="input">2D array to be flattened</param>
+            <returns>1D array</returns>
+        </member>
+        <member name="M:libplctag.DataTypes.Extensions.ArrayExtensions.To1DArray``1(``0[0:,0:,0:])">
+            <summary>
+            Extension method to flatten a 3D array to a 1D array
+            </summary>
+            <typeparam name="T">Array Type</typeparam>
+            <param name="input">3D array to be flattened</param>
+            <returns>1D array</returns>
+        </member>
+        <member name="M:libplctag.DataTypes.Extensions.ArrayExtensions.To2DArray``1(``0[],System.Int32,System.Int32)">
+            <summary>
+            Extension method to reshape a 1D array into a 2D array
+            </summary>
+            <typeparam name="T">Array Type</typeparam>
+            <param name="input">1D array to be reshaped</param>
+            <param name="height">Desired height (first index) of 2D array</param>
+            <param name="width">Desired width (second index) of 2D array</param>
+            <returns>2D array</returns>
+        </member>
+        <member name="M:libplctag.DataTypes.Extensions.ArrayExtensions.To3DArray``1(``0[],System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Extension method to reshape a 1D array into a 3D array
+            </summary>
+            <typeparam name="T">Array Type</typeparam>
+            <param name="input">1D array to be reshaped</param>
+            <param name="height">Desired height (first index) of 3D array</param>
+            <param name="width">Desired width (second index) of 3D array</param>
+            <param name="length">Desired length (third index) of 3D array</param>
+            <returns>#D array</returns>
+        </member>
+        <member name="P:libplctag.DataTypes.IPlcMapper`1.PlcType">
+            <summary>
+            You can define different marshalling behaviour for different types
+            The PlcType is injected during PlcMapper instantiation, and
+            will be available to you in your marshalling logic
+            </summary>
+        </member>
+        <member name="P:libplctag.DataTypes.IPlcMapper`1.ElementSize">
+            <summary>
+            Provide an integer value for ElementSize if you
+            want to pass this into the tag constructor
+            </summary>
+        </member>
+        <member name="P:libplctag.DataTypes.IPlcMapper`1.ArrayDimensions">
+            <summary>
+            The dimensions of the array. Null if not an array.
+            </summary>
+        </member>
+        <member name="M:libplctag.DataTypes.IPlcMapper`1.GetElementCount">
+            <summary>
+            This is used to convert the number of array elements
+            into the raw element count, which is used by the library.
+            Most of the time, this will be the dimensions multiplied, but occasionally
+            it is not (e.g. BOOL arrays).
+            </summary>
+        </member>
+        <member name="M:libplctag.DataTypes.IPlcMapper`1.Decode(libplctag.Tag)">
+            <summary>
+            This is the method that reads/unpacks the underlying value of the tag
+            and returns it as a C# type
+            </summary>
+            <param name="tag">Tag to be Decoded</param>
+            <returns>C# value of tag</returns>
+        </member>
+        <member name="M:libplctag.DataTypes.IPlcMapper`1.Encode(libplctag.Tag,`0)">
+            <summary>
+            This is the method that transforms the C# type into the underlying value of the tag
+            </summary>
+            <param name="tag">Tag to be encoded to</param>
+            <param name="value">C# value to be transformed</param>
+        </member>
+        <member name="T:libplctag.DebugLevel">
+            <summary>
+            Debug levels available in the base libplctag library
+            </summary>
+        </member>
+        <member name="F:libplctag.DebugLevel.None">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_NONE"/>
+        </member>
+        <member name="F:libplctag.DebugLevel.Error">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_ERROR"/>
+        </member>
+        <member name="F:libplctag.DebugLevel.Warn">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_WARN"/>
+        </member>
+        <member name="F:libplctag.DebugLevel.Info">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_INFO"/>
+        </member>
+        <member name="F:libplctag.DebugLevel.Detail">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_DETAIL"/>
+        </member>
+        <member name="F:libplctag.DebugLevel.Spew">
+            <inheritdoc cref="F:libplctag.NativeImport.DEBUG_LEVELS.PLCTAG_DEBUG_SPEW"/>
+        </member>
+        <member name="T:libplctag.Event">
+            <summary>
+            Events returned by the base libplctag library
+            </summary>
+        </member>
+        <member name="F:libplctag.Event.ReadStarted">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_READ_STARTED"/>
+        </member>
+        <member name="F:libplctag.Event.ReadCompleted">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_READ_COMPLETED"/>
+        </member>
+        <member name="F:libplctag.Event.WriteStarted">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_WRITE_STARTED"/>
+        </member>
+        <member name="F:libplctag.Event.WriteCompleted">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_WRITE_COMPLETED"/>
+        </member>
+        <member name="F:libplctag.Event.Aborted">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_ABORTED"/>
+        </member>
+        <member name="F:libplctag.Event.Destroyed">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_DESTROYED"/>
+        </member>
+        <member name="F:libplctag.Event.Created">
+            <inheritdoc cref="F:libplctag.NativeImport.EVENT_CODES.PLCTAG_EVENT_CREATED"/>
+        </member>
+        <member name="T:libplctag.ITag">
+            <summary>
+            An interface to represent any generic tag without
+            exposing its value
+            </summary>
+        </member>
+        <member name="T:libplctag.LibPlcTag">
+            <summary>
+            A static class used to access some additional features of the libplctag base library
+            </summary>
+        </member>
+        <member name="M:libplctag.LibPlcTag.IsRequiredVersion(System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Check if base library meets version requirements
+            </summary>
+            <param name="requiredMajor">Major</param>
+            <param name="requiredMinor">Minor</param>
+            <param name="requiredPatch">Patch</param>
+            <returns></returns>
+        </member>
+        <member name="P:libplctag.LibPlcTag.DebugLevel">
+            <summary>
+            Sets a debug level for the underlying libplctag library
+            </summary>
+        </member>
+        <member name="E:libplctag.LibPlcTag.LogEvent">
+            <summary>
+            You can redirect all logging from the library to your own delegate.
+            </summary>
+            <remarks>
+            WARNING There are some important restrictions on logging delegates:
+            The delegate will be called from multiple threads, sometimes simultaneously! Your code must be thread aware and thread-safe.
+            The delegate will be called with one or more mutexes held in almost all cases.You must not call any tag API functions other than plc_tag_decode_error(). If you do there is a large chance that the library will hang.
+            Logging messages come from deep within the library's core routines. Many of these are very delay sensitive. Do not do anything that would block or delay the return of the logging callback to the library!
+            The message string passed to your callback function will be managed by the library. Do not attempt to free its memory or modify the string. If you need to do modifications, make your own copy and return.
+            </remarks>
+        </member>
+        <member name="M:libplctag.LibPlcTag.Shutdown">
+            <summary>
+            After this function returns, the library will have cleaned up all internal threads and resources.
+            You can immediately turn around and call plc_tag_create() again and the library will start up again.
+            Note: you must dispose of all Tags before calling <see cref="M:libplctag.LibPlcTag.Shutdown"/>
+            </summary>
+            <remarks>
+            Some wrappers and systems are not able to trigger the standard POSIX or Windows functions when the library is 
+            being unloaded or the program is shutting down. In those cases, you can call this function.
+            </remarks>
+        </member>
+        <member name="T:libplctag.LibPlcTagException">
+            <summary>
+            An exception thrown by the underlying libplctag library
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.ControlLogix">
+            <summary>
+            Control Logix-class PLC. Synonym for lgx, logix, controllogix, contrologix, compactlogix, clgx.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.Plc5">
+            <summary>
+            PLC/5 PLC. Synonym for plc5, plc.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.Slc500">
+            <summary>
+            SLC 500 PLC. Synonym for slc500, slc.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.LogixPccc">
+            <summary>
+            Control Logix-class PLC using the PLC/5 protocol. Synonym for lgxpccc, logixpccc, lgxplc5, lgx_pccc, logix_pccc, lgx_plc5.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.Micro800">
+            <summary>
+            Micro800-class PLC. Synonym for micrologix800, mlgx800, micro800.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.MicroLogix">
+            <summary>
+            MicroLogix PLC. Synonym for micrologix, mlgx.
+            </summary>
+        </member>
+        <member name="F:libplctag.PlcType.Omron">
+            <summary>
+            Omron PLC. Synonym for omron-njnx, omron-nj, omron-nx, njnx, nx1p2
+            </summary>
+        </member>
+        <member name="F:libplctag.Protocol.ab_eip">
+            <summary>
+            Allen-Bradley specific flavor of EIP
+            </summary>
+        </member>
+        <member name="F:libplctag.Protocol.modbus_tcp">
+            <summary>
+            A Modbus TCP implementation used by many PLCs
+            </summary>
+        </member>
+        <member name="F:libplctag.Status.Pending">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_STATUS_PENDING"/>
+        </member>
+        <member name="F:libplctag.Status.Ok">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_STATUS_OK"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorAbort">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_ABORT"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadConfig">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_CONFIG"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadConnection">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_CONNECTION"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadData">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_DATA"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadDevice">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_DEVICE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadGateway">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_GATEWAY"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadParam">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_PARAM"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadReply">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_REPLY"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBadStatus">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BAD_STATUS"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorClose">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_CLOSE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorCreate">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_CREATE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorDuplicate">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_DUPLICATE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorEncode">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_ENCODE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorMutexDestroy">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_MUTEX_DESTROY"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorMutexInit">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_MUTEX_INIT"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorMutexLock">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_MUTEX_LOCK"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorMutexUnlock">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_MUTEX_UNLOCK"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNotAllowed">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NOT_ALLOWED"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNotFound">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NOT_FOUND"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNotImplemented">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NOT_IMPLEMENTED"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNoData">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NO_DATA"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNoMatch">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NO_MATCH"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNoMem">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NO_MEM"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNoResources">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NO_RESOURCES"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorNullPtr">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_NULL_PTR"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorOpen">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_OPEN"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorOutOfBounds">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_OUT_OF_BOUNDS"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorRead">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_READ"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorRemoteErr">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_REMOTE_ERR"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorThreadCreate">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_THREAD_CREATE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorThreadJoin">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_THREAD_JOIN"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorTimeout">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_TIMEOUT"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorTooLarge">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_TOO_LARGE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorTooSmall">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_TOO_SMALL"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorUnsupported">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_UNSUPPORTED"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorWinsock">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_WINSOCK"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorWrite">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_WRITE"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorPartial">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_PARTIAL"/>
+        </member>
+        <member name="F:libplctag.Status.ErrorBusy">
+            <inheritdoc cref="F:libplctag.NativeImport.STATUS_CODES.PLCTAG_ERR_BUSY"/>
+        </member>
+        <member name="P:libplctag.Tag.IsInitialized">
+            <summary>
+            True if <see cref="M:libplctag.Tag.Initialize"/> or <see cref="M:libplctag.Tag.InitializeAsync(System.Threading.CancellationToken)"/> has been called.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.ElementCount">
+            <summary>
+            Optional An integer number of elements per tag .
+            </summary>
+            
+            <remarks>
+            All tags are treated as arrays.
+            Tags that are not arrays are considered to have a length of one element.
+            This attribute determines how many elements are in the tag.
+            Defaults to one (1) if not found.
+            </remarks>
+        </member>
+        <member name="P:libplctag.Tag.ElementSize">
+            <summary>
+            Optional An integer number of bytes per element
+            </summary>
+            
+            <remarks>
+            This attribute determines the size of a single element of the tag.
+            Ignored for Modbus and for Allen-Bradley PLCs.
+            </remarks>
+        </member>
+        <member name="P:libplctag.Tag.Gateway">
+            <summary>
+            This tells the library what host name or IP address to use for the PLC 
+            or the gateway to the PLC (in the case that the PLC is remote).
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Name">
+            <summary>
+            This is the full name of the tag.
+            For program tags, prepend `Program:{ProgramName}.` 
+            where {ProgramName} is the name of the program in which the tag is created.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Path">
+            <summary>
+            This attribute is required for CompactLogix/ControlLogix tags 
+            and for tags using a DH+ protocol bridge (i.e. a DHRIO module) to get to a PLC/5, SLC 500, or MicroLogix PLC on a remote DH+ link. 
+            The attribute is ignored if it is not a DH+ bridge route, but will generate a warning if debugging is active. 
+            Note that Micro800 connections must not have a path attribute.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.PlcType">
+            <summary>
+            The type of PLC
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Protocol">
+            <summary>
+            Determines the type of the PLC Protocol.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.ReadCacheMillisecondDuration">
+            <summary>
+            Optional. Use this attribute to cause the tag read operations to cache data the requested number of milliseconds. 
+            This can be used to lower the actual number of requests against the PLC. 
+            Example read_cache_ms=100 will result in read operations no more often than once every 100 milliseconds.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Timeout">
+            <summary>
+            A timeout value that is used for Initialize/Read/Write methods.
+            It applies to both synchronous and asynchronous calls.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.UseConnectedMessaging">
+            <summary>
+            Optional. Control whether to use connected or unconnected messaging. 
+            Only valid on Logix-class PLCs. Connected messaging is required on Micro800 and DH+ bridged links. 
+            Default is PLC-specific and link-type specific. Generally you do not need to set this.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.AllowPacking">
+            <summary>
+            Optional.
+            This is specific to individual PLC models.
+            Generally only Control Logix-class PLCs support it.
+            It is the default for those PLCs that support it as it greatly increases the performance of the communication channel to the PLC.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.AutoSyncReadInterval">
+            <summary>
+            Optional. An integer number of milliseconds to periodically read data from the PLC.
+            </summary>
+            
+            <remarks>
+            Use this attribute to automatically read data from the PLC on a set interval.
+            This can be used in conjunction with the <see cref="E:libplctag.Tag.ReadStarted"/> and <see cref="E:libplctag.Tag.ReadCompleted"/> events to respond to the data updates.
+            </remarks>
+        </member>
+        <member name="P:libplctag.Tag.AutoSyncWriteInterval">
+            <summary>
+            Optional. An integer number of milliseconds to buffer tag data changes before writing to the PLC.
+            </summary>
+            
+            <remarks>
+            Use this attribute to automatically write data to the PLC a set duration after setting its value.
+            This can be used to lower the actual number of write operations by locally buffering local writes, and only writing to the PLC the most recent one when the wait completes.
+            You can determine when a write starts and completes by catching the <see cref="E:libplctag.Tag.WriteStarted"/> and <see cref="E:libplctag.Tag.WriteCompleted"/> events.
+            </remarks>
+        </member>
+        <member name="P:libplctag.Tag.Int16ByteOrder">
+            <summary>
+            Configures. the byte order of 16-bit integers.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Int32ByteOrder">
+            <summary>
+            Optional. Configures the byte order of 32-bit integers.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Int64ByteOrder">
+            <summary>
+            Optional. Configures the byte order of 64-bit integers.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Float32ByteOrder">
+            <summary>
+            Optional. Configures the byte order of 32-bit floating point values.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.Float64ByteOrder">
+            <summary>
+            Optional. Configures the byte order of 64-bit floating point values.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringCountWordBytes">
+            <summary>
+            Optional. A positive integer value of 1, 2, 4, or 8 determining how big the leading count word is in a string.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringIsByteSwapped">
+            <summary>
+            Optional. Determines whether character bytes are swapped within 16-bit words.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringIsCounted">
+            <summary>
+            Optional. Determines whether strings have a count word or not.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringIsFixedLength">
+            <summary>
+            Optional. Determines whether strings have a fixed length that they occupy.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringIsZeroTerminated">
+            <summary>
+            Optional. Determines whether strings are zero-terminated as is done in C.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringMaxCapacity">
+            <summary>
+            Optional. Determines the maximum number of character bytes in a string.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringPadBytes">
+            <summary>
+            Optional. A positive integer value determining the total number of padding bytes at the end of a string.
+            </summary>
+        </member>
+        <member name="P:libplctag.Tag.StringTotalLength">
+            <summary>
+            Optional. A positive integer value determining the total number of bytes used in the tag buffer by a string. Must be used with str_is_fixed_length.
+            </summary>
+        </member>
+        <member name="M:libplctag.Tag.Initialize">
+            <summary>
+            Creates the underlying data structures and references required before tag operations.
+            </summary>
+            
+            <remarks>
+            Initializes the tag by establishing necessary connections.
+            Can only be called once per instance.
+            Timeout is controlled via class property.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.InitializeAsync(System.Threading.CancellationToken)">
+            <summary>
+            Creates the underlying data structures and references required before tag operations.
+            </summary>
+            
+            <remarks>
+            Initializes the tag by establishing necessary connections.
+            Can only be called once per instance.
+            Timeout is controlled via class property.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.Read">
+            <summary>
+            Executes a synchronous read on a tag.
+            Timeout is controlled via class property.
+            </summary>
+            
+            <remarks>
+            Reading a tag brings the data at the time of read into the local memory of the PC running the library. 
+            The data is not automatically kept up to date. 
+            If you need to find out the data periodically, you need to read the tag periodically.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.ReadAsync(System.Threading.CancellationToken)">
+            <summary>
+            Executes an asynchronous read on a tag.
+            Timeout is controlled via class property.
+            </summary>
+            
+            <remarks>
+            Reading a tag brings the data at the time of read into the local memory of the PC running the library. 
+            The data is not automatically kept up to date. 
+            If you need to find out the data periodically, you need to read the tag periodically.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.Write">
+            <summary>
+            Executes a synchronous write on a tag.
+            Timeout is controlled via class property.
+            </summary>
+            
+            <remarks>
+            Writing a tag sends the data from local memory to the target PLC.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.WriteAsync(System.Threading.CancellationToken)">
+            <summary>
+            Executes an asynchronous write on a tag.
+            Timeout is controlled via class property.
+            </summary>
+            
+            <remarks>
+            Writing a tag sends the data from local memory to the target PLC.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.GetBuffer">
+            <summary>
+            This function retrieves a segment of raw, unprocessed bytes from the tag buffer.
+            </summary>
+            <remarks>
+            Note; initialises a new block of memory.
+            If this is problematic, use <see cref="M:libplctag.Tag.GetBuffer(System.Byte[])"/> instead.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.GetBuffer(System.Byte[])">
+            <summary>
+            Fills the supplied buffer with the raw, unprocessed bytes from the tag buffer.
+            </summary>
+            <remarks>
+            Use this instead of <see cref="M:libplctag.Tag.GetBuffer"/> to avoid creating a new block of memory.
+            </remarks>
+        </member>
+        <member name="M:libplctag.Tag.GetStatus">
+            <summary>
+            Check the operational status of the tag
+            </summary>
+            <returns>Tag's current status</returns>
+        </member>
+        <member name="T:libplctag.Tag`2">
+            <summary>
+            A class that allows for strongly-typed objects tied to PLC tags
+            </summary>
+            <typeparam name="M">A <see cref="T:libplctag.DataTypes.IPlcMapper`1"/> class that handles data conversion</typeparam>
+            <typeparam name="T">The desired C# type of Tag.Value</typeparam>
+        </member>
+        <member name="P:libplctag.Tag`2.Protocol">
+            <inheritdoc cref="P:libplctag.Tag.Protocol"/>
+        </member>
+        <member name="P:libplctag.Tag`2.Gateway">
+            <inheritdoc cref="P:libplctag.Tag.Gateway"/>
+        </member>
+        <member name="P:libplctag.Tag`2.Path">
+            <inheritdoc cref="P:libplctag.Tag.Path"/>
+        </member>
+        <member name="P:libplctag.Tag`2.PlcType">
+            <inheritdoc cref="P:libplctag.Tag.PlcType"/>
+        </member>
+        <member name="P:libplctag.Tag`2.Name">
+            <inheritdoc cref="P:libplctag.Tag.Name"/>
+        </member>
+        <member name="P:libplctag.Tag`2.UseConnectedMessaging">
+            <inheritdoc cref="P:libplctag.Tag.UseConnectedMessaging"/>
+        </member>
+        <member name="P:libplctag.Tag`2.AllowPacking">
+            <inheritdoc cref="P:libplctag.Tag.AllowPacking"/>
+        </member>
+        <member name="P:libplctag.Tag`2.ReadCacheMillisecondDuration">
+            <inheritdoc cref="P:libplctag.Tag.ReadCacheMillisecondDuration"/>
+        </member>
+        <member name="P:libplctag.Tag`2.Timeout">
+            <inheritdoc cref="P:libplctag.Tag.Timeout"/>
+        </member>
+        <member name="P:libplctag.Tag`2.AutoSyncReadInterval">
+            <inheritdoc cref="P:libplctag.Tag.AutoSyncReadInterval"/>
+        </member>
+        <member name="P:libplctag.Tag`2.AutoSyncWriteInterval">
+            <inheritdoc cref="P:libplctag.Tag.AutoSyncWriteInterval"/>
+        </member>
+        <member name="P:libplctag.Tag`2.DebugLevel">
+            <inheritdoc cref="P:libplctag.Tag.DebugLevel"/>
+        </member>
+        <member name="P:libplctag.Tag`2.ArrayDimensions">
+            <summary>
+            Dimensions of Value if it is an array
+            Ex. {2, 10} for a 2 column, 10 row array
+            Non-arrays can use null (default)
+            </summary>
+        </member>
+        <member name="M:libplctag.Tag`2.Initialize">
+            <inheritdoc cref="M:libplctag.Tag.Initialize"/>
+        </member>
+        <member name="M:libplctag.Tag`2.InitializeAsync(System.Threading.CancellationToken)">
+            <inheritdoc cref="M:libplctag.Tag.InitializeAsync(System.Threading.CancellationToken)"/>
+        </member>
+        <member name="M:libplctag.Tag`2.ReadAsync(System.Threading.CancellationToken)">
+            <inheritdoc cref="M:libplctag.Tag.ReadAsync(System.Threading.CancellationToken)"/>
+        </member>
+        <member name="M:libplctag.Tag`2.Read">
+            <inheritdoc cref="M:libplctag.Tag.Read"/>
+        </member>
+        <member name="M:libplctag.Tag`2.WriteAsync(System.Threading.CancellationToken)">
+            <inheritdoc cref="M:libplctag.Tag.WriteAsync(System.Threading.CancellationToken)"/>
+        </member>
+        <member name="M:libplctag.Tag`2.WriteAsync(`1,System.Threading.CancellationToken)">
+            <inheritdoc cref="M:libplctag.Tag.WriteAsync(System.Threading.CancellationToken)"/>
+        </member>
+        <member name="M:libplctag.Tag`2.Write">
+            <inheritdoc cref="M:libplctag.Tag.Write"/>
+        </member>
+        <member name="M:libplctag.Tag`2.Write(`1)">
+            <inheritdoc cref="M:libplctag.Tag.Write"/>
+        </member>
+        <member name="M:libplctag.Tag`2.GetStatus">
+            <inheritdoc cref="M:libplctag.Tag.GetStatus"/>
+        </member>
+        <member name="P:libplctag.Tag`2.Value">
+            <summary>
+            The local memory value that can be transferred to/from the PLC
+            </summary>
+        </member>
+    </members>
+</doc>
