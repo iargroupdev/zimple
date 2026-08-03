@@ -29,3 +29,14 @@ This version includes a stabilization pass focused on the recurring PLC communic
 - generated files, build output, logs, and signing material are ignored by Git.
 
 See `STABILITY_NOTES.md` for details and follow-up checks.
+
+## Offline PLC stress tools
+
+The repository includes offline tools to estimate/stress the current PLC request pattern without a real PLC:
+
+```bash
+python3 tools/moveout_plc_call_estimator.py
+python3 tools/plc_stress_simulator.py --plcs 3 --ops-per-plc 40 --moveout-ratio 0.70 --min-measures 45 --max-measures 60 --read-ms 8 --write-ms 8 --speedup 50
+```
+
+See `PLC_STABILITY_AUDIT.md` and `PLC_STRESS_RESULTS.md`.

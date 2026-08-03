@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Estimate PLC read pressure for Serial_MoveOutAndTestResults."""
+"""Estimate PLC read pressure for the current Serial_MoveOutAndTestResults contract."""
 
 import argparse
 
@@ -12,19 +12,9 @@ def legacy_reads(measure_count):
     return HEADER_READS + (measure_count * FIELDS_PER_MEASURE)
 
 
-def packed_reads(measure_count):
-    return HEADER_READS + (1 if measure_count > 0 else 0)
-
-
-def percent_reduction(before, after):
-    if before == 0:
-        return 0.0
-    return ((before - after) / before) * 100.0
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Estimate PLC reads before/after packed MoveOutAndTestResults measure data."
+        description="Estimate PLC reads for MoveOutAndTestResults using the current PLC tag structure."
     )
     parser.add_argument(
         "counts",
@@ -35,14 +25,12 @@ def main():
     )
     args = parser.parse_args()
 
-    print("MeasureData rows | Legacy PLC reads | Packed PLC reads | Saved reads | Reduction")
-    print("-----------------|------------------|------------------|-------------|----------")
+    print("MeasureData rows | Current PLC reads | PLC writes | Total PLC ops")
+    print("-----------------|-------------------|------------|--------------")
     for count in args.counts:
-        before = legacy_reads(count)
-        after = packed_reads(count)
-        saved = before - after
-        reduction = percent_reduction(before, after)
-        print(f"{count:16d} | {before:16d} | {after:16d} | {saved:11d} | {reduction:8.1f}%")
+        reads = legacy_reads(count)
+        writes = 2
+        print(f"{count:16d} | {reads:17d} | {writes:10d} | {reads + writes:12d}")
 
 
 if __name__ == "__main__":

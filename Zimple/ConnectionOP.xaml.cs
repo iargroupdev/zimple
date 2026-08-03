@@ -10,7 +10,6 @@ using Microsoft.SqlServer.Server;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Concurrent;
-using System.Configuration;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -47,8 +46,6 @@ namespace Zimple
         private const int MeasurementReadPauseMilliseconds = 50;
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
         private static readonly SemaphoreSlim heavyPlcRequestGate = new SemaphoreSlim(1, 1);
-        private const string PackedMeasureDataAppSetting = "UsePackedMoveOutMeasureData";
-        private const string PackedMeasureDataTagName = "MeasureDataPacked";
 
         private readonly System.Threading.SemaphoreSlim connectionGate = new System.Threading.SemaphoreSlim(1, 1);
         private DispatcherTimer checkConnectionTimer = new DispatcherTimer();
@@ -839,99 +836,14 @@ namespace Zimple
         }
 
 
-        private bool UsePackedMoveOutMeasureData()
-        {
-            return string.Equals(
-                ConfigurationManager.AppSettings[PackedMeasureDataAppSetting],
-                "true",
-                StringComparison.OrdinalIgnoreCase);
-        }
-
-        private List<MES_HAI.Entity.Measure> ReadMoveOutAndTestResultMeasures(string opName, int length, out string readMode)
+        private List<MES_HAI.Entity.Measure> ReadMoveOutAndTestResultMeasures(string opName, int length)
         {
             if (length <= 0)
             {
-                readMode = "empty";
                 return new List<MES_HAI.Entity.Measure>();
             }
 
-            if (UsePackedMoveOutMeasureData())
-            {
-                try
-                {
-                    List<MES_HAI.Entity.Measure> packedMeasures = ReadPackedMoveOutAndTestResultMeasures(opName, length);
-                    readMode = "packed";
-                    return packedMeasures;
-                }
-                catch (Exception ex)
-                {
-                    Log(opName, $"Packed MeasureData read failed; falling back to legacy field reads: {ex.Message}\n");
-                }
-            }
-
-            readMode = "legacy";
             return ReadLegacyMoveOutAndTestResultMeasures(opName, length);
-        }
-
-        private List<MES_HAI.Entity.Measure> ReadPackedMoveOutAndTestResultMeasures(string opName, int length)
-        {
-            var packedTag = tagStore.GetStringArray(
-                $"{opName}.Serial_MoveOutAndTestResults.{PackedMeasureDataTagName}",
-                length);
-            string[] rows = tagStore.ReadStringArray(packedTag);
-
-            if (rows == null || rows.Length < length)
-            {
-                throw new InvalidOperationException($"Packed MeasureData returned {rows?.Length ?? 0} rows for expected length {length}.");
-            }
-
-            List<MES_HAI.Entity.Measure> measures = new List<MES_HAI.Entity.Measure>();
-            for (int i = 0; i < length; i++)
-            {
-                string row = rows[i] ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(row))
-                {
-                    continue;
-                }
-
-                measures.Add(ParsePackedMeasure(row, i));
-            }
-
-            return measures;
-        }
-
-        private MES_HAI.Entity.Measure ParsePackedMeasure(string row, int index)
-        {
-            string[] parts = row.Split('|');
-            if (parts.Length < 9)
-            {
-                throw new FormatException($"Packed MeasureData row {index} has {parts.Length} fields; expected 9.");
-            }
-
-            int position;
-            if (!int.TryParse(parts[5], out position))
-            {
-                position = 0;
-            }
-
-            int measureResultInt;
-            if (!int.TryParse(parts[6], out measureResultInt))
-            {
-                measureResultInt = 0;
-            }
-
-            return new MES_HAI.Entity.Measure
-            {
-                HighLimit = parts[0],
-                LowLimit = parts[1],
-                MeasureKey = parts[2],
-                MeasureNotes = parts[3],
-                MeasureValue = parts[4],
-                Position = position,
-                Result = ToMeasureResult(measureResultInt),
-                Tolerance = parts[7],
-                UnitOfMeasure = parts[8]
-            };
         }
 
         private List<MES_HAI.Entity.Measure> ReadLegacyMoveOutAndTestResultMeasures(string opName, int length)
@@ -1019,12 +931,6 @@ namespace Zimple
         {
             return 8 + (measureCount * 9);
         }
-
-        private int EstimatedPackedMoveOutPlcReads(int measureCount)
-        {
-            return 8 + (measureCount > 0 ? 1 : 0);
-        }
-
 
         private void ExecuteActionBasedOnTrigger(string opName, int triggerValue)
         {
@@ -1470,9 +1376,8 @@ namespace Zimple
                                 break;
                         }
 
-                        string measureReadMode;
                         List<MES_HAI.Entity.Measure> measuresList =
-                            ReadMoveOutAndTestResultMeasures(opName, LenghtMeasureData, out measureReadMode);
+                            ReadMoveOutAndTestResultMeasures(opName, LenghtMeasureData);
                         plcReadStopwatch.Stop();
                         PlcOperationSnapshot afterPlcReads = tagStore.SnapshotOperations();
 
@@ -1497,10 +1402,8 @@ namespace Zimple
                         long plcReads = afterPlcReads.Reads - beforeOperations.Reads;
                         long plcWrites = afterAll.Writes - beforeOperations.Writes;
                         int legacyEstimate = EstimatedLegacyMoveOutPlcReads(LenghtMeasureData);
-                        int packedEstimate = EstimatedPackedMoveOutPlcReads(LenghtMeasureData);
-                        int estimatedSavedReads = legacyEstimate - packedEstimate;
 
-                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}, MeasureReadMode: {measureReadMode}, PlcReads: {plcReads}, PlcWrites: {plcWrites}, PlcReadMs: {plcReadStopwatch.ElapsedMilliseconds}, MesMs: {mesStopwatch.ElapsedMilliseconds}, TotalMs: {totalStopwatch.ElapsedMilliseconds}, LegacyReadEstimate: {legacyEstimate}, PackedReadEstimate: {packedEstimate}, EstimatedSavedReadsWhenPacked: {estimatedSavedReads}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
+                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}, PlcReads: {plcReads}, PlcWrites: {plcWrites}, PlcReadMs: {plcReadStopwatch.ElapsedMilliseconds}, MesMs: {mesStopwatch.ElapsedMilliseconds}, TotalMs: {totalStopwatch.ElapsedMilliseconds}, ExpectedCurrentContractReads: {legacyEstimate}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
 
 
                     }
