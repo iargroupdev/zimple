@@ -2,8 +2,8 @@
 """Offline stress simulator for Zimple PLC/MES trigger execution.
 
 This does not talk to a real PLC or MES. It models the current application
-contract: one execution queue per PLC, one global gate for trigger 8, and the
-existing PLC tag structure for Serial_MoveOutAndTestResults.
+contract: one execution queue per PLC, configurable heavy gate scope for
+trigger 8, and the existing PLC tag structure for Serial_MoveOutAndTestResults.
 """
 
 import argparse
@@ -58,9 +58,12 @@ class StressModel:
     def __init__(self, args):
         self.args = args
         self.heavy_gate = None
+        self.heavy_gates_by_plc = {}
         self.results = []
         self.heavy_in_flight = 0
         self.max_heavy_in_flight = 0
+        self.heavy_in_flight_by_plc = {}
+        self.max_heavy_in_flight_by_plc = {}
 
     def moveout_reads(self, measures):
         return 8 + (9 * measures)
@@ -76,6 +79,11 @@ class StressModel:
     async def execute_heavy_body(self, request, reads, writes):
         self.heavy_in_flight += 1
         self.max_heavy_in_flight = max(self.max_heavy_in_flight, self.heavy_in_flight)
+        self.heavy_in_flight_by_plc[request.plc] = self.heavy_in_flight_by_plc.get(request.plc, 0) + 1
+        self.max_heavy_in_flight_by_plc[request.plc] = max(
+            self.max_heavy_in_flight_by_plc.get(request.plc, 0),
+            self.heavy_in_flight_by_plc[request.plc],
+        )
         try:
             await self.plc_io(reads, 0)
             pause_count = max(0, (request.measures - 1) // 5)
@@ -83,6 +91,7 @@ class StressModel:
             await self.mes_call()
             await self.plc_io(0, writes)
         finally:
+            self.heavy_in_flight_by_plc[request.plc] -= 1
             self.heavy_in_flight -= 1
 
     async def execute(self, request):
@@ -90,8 +99,11 @@ class StressModel:
         if request.trigger == MOVEOUT_AND_TEST_RESULTS:
             reads = self.moveout_reads(request.measures)
             writes = 2
-            if self.args.disable_heavy_gate:
+            if self.args.gate_scope == "none":
                 await self.execute_heavy_body(request, reads, writes)
+            elif self.args.gate_scope == "plc":
+                async with self.heavy_gates_by_plc[request.plc]:
+                    await self.execute_heavy_body(request, reads, writes)
             else:
                 async with self.heavy_gate:
                     await self.execute_heavy_body(request, reads, writes)
@@ -119,6 +131,7 @@ class StressModel:
 
     async def run(self):
         self.heavy_gate = asyncio.Semaphore(1)
+        self.heavy_gates_by_plc = {plc: asyncio.Semaphore(1) for plc in range(self.args.plcs)}
         per_plc = [[] for _ in range(self.args.plcs)]
         triggers = sorted(TRIGGER_COSTS.keys())
         burst_time = time.perf_counter()
@@ -144,7 +157,7 @@ def percentile(values, pct):
     return ordered[index]
 
 
-def print_summary(results, elapsed_ms, max_heavy_in_flight):
+def print_summary(results, elapsed_ms, max_heavy_in_flight, max_heavy_in_flight_by_plc):
     reads = sum(item.reads for item in results)
     writes = sum(item.writes for item in results)
     heavy = [item for item in results if item.trigger == MOVEOUT_AND_TEST_RESULTS]
@@ -156,6 +169,7 @@ def print_summary(results, elapsed_ms, max_heavy_in_flight):
     print(f"PLC operations: {reads} reads, {writes} writes, {reads + writes} total")
     print(f"Modeled wall time: {elapsed_ms:.0f} ms")
     print(f"Max simultaneous MoveOutAndTestResults: {max_heavy_in_flight}")
+    print(f"Max simultaneous MoveOutAndTestResults per PLC: {max(max_heavy_in_flight_by_plc.values() or [0])}")
     print(
         "Request elapsed ms: "
         f"avg={statistics.mean(elapsed):.0f}, "
@@ -189,14 +203,19 @@ def main():
     parser.add_argument("--mes-max-ms", type=float, default=250.0)
     parser.add_argument("--pause-ms", type=float, default=50.0)
     parser.add_argument("--speedup", type=float, default=1.0)
-    parser.add_argument("--disable-heavy-gate", action="store_true")
+    parser.add_argument("--gate-scope", choices=["global", "plc", "none"], default="plc")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
     random.seed(args.seed)
     model = StressModel(args)
     elapsed_ms = asyncio.run(model.run())
-    print_summary(model.results, elapsed_ms, model.max_heavy_in_flight)
+    print_summary(
+        model.results,
+        elapsed_ms,
+        model.max_heavy_in_flight,
+        model.max_heavy_in_flight_by_plc,
+    )
 
 
 if __name__ == "__main__":

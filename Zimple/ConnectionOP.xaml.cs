@@ -45,7 +45,8 @@ namespace Zimple
         private const int MeasurementReadPauseEveryItems = 5;
         private const int MeasurementReadPauseMilliseconds = 50;
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
-        private static readonly SemaphoreSlim heavyPlcRequestGate = new SemaphoreSlim(1, 1);
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> heavyPlcRequestGatesByIp =
+            new ConcurrentDictionary<string, SemaphoreSlim>();
 
         private readonly System.Threading.SemaphoreSlim connectionGate = new System.Threading.SemaphoreSlim(1, 1);
         private DispatcherTimer checkConnectionTimer = new DispatcherTimer();
@@ -930,6 +931,12 @@ namespace Zimple
         private int EstimatedLegacyMoveOutPlcReads(int measureCount)
         {
             return 8 + (measureCount * 9);
+        }
+
+        private SemaphoreSlim GetHeavyPlcRequestGate()
+        {
+            string key = string.IsNullOrWhiteSpace(plcIpAddress) ? "NO_IP" : plcIpAddress;
+            return heavyPlcRequestGatesByIp.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
         }
 
         private void ExecuteActionBasedOnTrigger(string opName, int triggerValue)
@@ -1903,13 +1910,15 @@ namespace Zimple
                 {
                     isProcessingQueue = true;
                     bool heavyGateTaken = false;
+                    SemaphoreSlim heavyGate = null;
 
                     try
                     {
                         if (item.trigger == HeavyTriggerValue)
                         {
-                            Log(item.opName, "Waiting for exclusive PLC heavy request slot.\n");
-                            await heavyPlcRequestGate.WaitAsync(cancellationToken);
+                            heavyGate = GetHeavyPlcRequestGate();
+                            Log(item.opName, $"Waiting for exclusive PLC heavy request slot on {plcIpAddress}.\n");
+                            await heavyGate.WaitAsync(cancellationToken);
                             heavyGateTaken = true;
                         }
 
@@ -1927,7 +1936,7 @@ namespace Zimple
                             {
                             }
 
-                            heavyPlcRequestGate.Release();
+                            heavyGate?.Release();
                         }
 
                         isProcessingQueue = false;

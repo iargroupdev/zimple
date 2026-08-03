@@ -15,7 +15,7 @@ With 60 measurement rows, that is 548 PLC reads before the MES call, plus 2 PLC 
 Because the PLC data structure must not change, this version does not introduce new PLC tags or a different read contract. The stability strategy is therefore:
 
 1. measure the actual PLC read/write count in production logs;
-2. serialize and pace the heaviest request so the PLC is not hit by overlapping bursts;
+2. serialize and pace the heaviest request per PLC/IP so each PLC is not hit by overlapping bursts;
 3. cap dangerous measurement lengths;
 4. keep trigger scanning/heartbeat away from active heavy work.
 
@@ -51,7 +51,7 @@ python3 tools/plc_stress_simulator.py --plcs 3 --ops-per-plc 40 --moveout-ratio 
 The simulator models the current application behavior:
 
 1. one execution queue per PLC tab;
-2. trigger 8 serialized by the global heavy request gate;
+2. trigger 8 serialized by the per-PLC heavy request gate;
 3. current `MeasureData[i].Field` reads;
 4. configurable PLC read/write and MES latency.
 
@@ -60,7 +60,7 @@ This is not a replacement for a real PLC acceptance test, but it is useful to st
 ## Audit Notes
 
 1. The timeout pattern is consistent with too many small PLC reads during trigger 8, especially when several OPs finish close together.
-2. The current global gate protects the PLC from simultaneous trigger 8 bursts, but it can increase queue time. That is the tradeoff: less PLC pressure, more waiting under bursts.
+2. The current per-PLC gate protects each PLC from simultaneous trigger 8 bursts without blocking unrelated PLCs.
 3. Since the PLC structure is fixed, there is no true per-request read reduction available inside the application. We can only reduce overlap, pace reads, cap counts, and avoid extra polling while work is active.
 4. Error paths in trigger 8 log exceptions but do not always write a deterministic error response/status back to the PLC. That is a production-risk item for a second pass.
 5. The application still combines UI, PLC protocol, MES calls, and logging in `ConnectionOP.xaml.cs`. A future refactor should split this into PLC service, MES service, trigger dispatcher, and UI layer.
@@ -76,7 +76,7 @@ Better long-term options depend on what the PLC/customer allows:
 2. Commercial Allen-Bradley .NET drivers may improve support and diagnostics, but they will not solve the `9 * N` read pattern by themselves.
 3. Keep `MES_HAI` unchanged as the client-owned MES boundary.
 
-Recommendation: keep `libplctag` for now, deploy the evidence layer, run stress/production logs, and only reassess the PLC communication stack if timeouts remain after the heavy request gate and pacing are confirmed under real load.
+Recommendation: keep `libplctag` for now, deploy the evidence layer, run stress/production logs, and only reassess the PLC communication stack if timeouts remain after the per-PLC heavy request gate and pacing are confirmed under real load.
 
 References checked:
 
