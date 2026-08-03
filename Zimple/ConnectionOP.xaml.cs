@@ -10,7 +10,9 @@ using Microsoft.SqlServer.Server;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Concurrent;
+using System.Configuration;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -45,6 +47,8 @@ namespace Zimple
         private const int MeasurementReadPauseMilliseconds = 50;
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
         private static readonly SemaphoreSlim heavyPlcRequestGate = new SemaphoreSlim(1, 1);
+        private const string PackedMeasureDataAppSetting = "UsePackedMoveOutMeasureData";
+        private const string PackedMeasureDataTagName = "MeasureDataPacked";
 
         private readonly System.Threading.SemaphoreSlim connectionGate = new System.Threading.SemaphoreSlim(1, 1);
         private DispatcherTimer checkConnectionTimer = new DispatcherTimer();
@@ -835,6 +839,192 @@ namespace Zimple
         }
 
 
+        private bool UsePackedMoveOutMeasureData()
+        {
+            return string.Equals(
+                ConfigurationManager.AppSettings[PackedMeasureDataAppSetting],
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private List<MES_HAI.Entity.Measure> ReadMoveOutAndTestResultMeasures(string opName, int length, out string readMode)
+        {
+            if (length <= 0)
+            {
+                readMode = "empty";
+                return new List<MES_HAI.Entity.Measure>();
+            }
+
+            if (UsePackedMoveOutMeasureData())
+            {
+                try
+                {
+                    List<MES_HAI.Entity.Measure> packedMeasures = ReadPackedMoveOutAndTestResultMeasures(opName, length);
+                    readMode = "packed";
+                    return packedMeasures;
+                }
+                catch (Exception ex)
+                {
+                    Log(opName, $"Packed MeasureData read failed; falling back to legacy field reads: {ex.Message}\n");
+                }
+            }
+
+            readMode = "legacy";
+            return ReadLegacyMoveOutAndTestResultMeasures(opName, length);
+        }
+
+        private List<MES_HAI.Entity.Measure> ReadPackedMoveOutAndTestResultMeasures(string opName, int length)
+        {
+            var packedTag = tagStore.GetStringArray(
+                $"{opName}.Serial_MoveOutAndTestResults.{PackedMeasureDataTagName}",
+                length);
+            string[] rows = tagStore.ReadStringArray(packedTag);
+
+            if (rows == null || rows.Length < length)
+            {
+                throw new InvalidOperationException($"Packed MeasureData returned {rows?.Length ?? 0} rows for expected length {length}.");
+            }
+
+            List<MES_HAI.Entity.Measure> measures = new List<MES_HAI.Entity.Measure>();
+            for (int i = 0; i < length; i++)
+            {
+                string row = rows[i] ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(row))
+                {
+                    continue;
+                }
+
+                measures.Add(ParsePackedMeasure(row, i));
+            }
+
+            return measures;
+        }
+
+        private MES_HAI.Entity.Measure ParsePackedMeasure(string row, int index)
+        {
+            string[] parts = row.Split('|');
+            if (parts.Length < 9)
+            {
+                throw new FormatException($"Packed MeasureData row {index} has {parts.Length} fields; expected 9.");
+            }
+
+            int position;
+            if (!int.TryParse(parts[5], out position))
+            {
+                position = 0;
+            }
+
+            int measureResultInt;
+            if (!int.TryParse(parts[6], out measureResultInt))
+            {
+                measureResultInt = 0;
+            }
+
+            return new MES_HAI.Entity.Measure
+            {
+                HighLimit = parts[0],
+                LowLimit = parts[1],
+                MeasureKey = parts[2],
+                MeasureNotes = parts[3],
+                MeasureValue = parts[4],
+                Position = position,
+                Result = ToMeasureResult(measureResultInt),
+                Tolerance = parts[7],
+                UnitOfMeasure = parts[8]
+            };
+        }
+
+        private List<MES_HAI.Entity.Measure> ReadLegacyMoveOutAndTestResultMeasures(string opName, int length)
+        {
+            List<MES_HAI.Entity.Measure> measuresList = new List<MES_HAI.Entity.Measure>();
+
+            int i = 0;
+            while (i < length)
+            {
+                var highlimit = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].HighLimit");
+                var highL = tagStore.ReadString(highlimit);
+                var Lowlimit = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].LowLimit");
+                var LowL = tagStore.ReadString(Lowlimit);
+                var MeasureKey = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureKey");
+                var MeasureK = tagStore.ReadString(MeasureKey);
+                var MeasureNotes = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureNotes");
+                var MeasureN = tagStore.ReadString(MeasureNotes);
+                var MeasureValue = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureValue");
+                var MeasureV = tagStore.ReadString(MeasureValue);
+                var Position = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Position");
+                var Pos = tagStore.ReadString(Position);
+                var Result = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Result");
+                var Res = tagStore.ReadString(Result);
+                var Tolerance = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Tolerance");
+                var Tol = tagStore.ReadString(Tolerance);
+                var UnitOfMeasure = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].UnitOfMeasure");
+                var UOM = tagStore.ReadString(UnitOfMeasure);
+
+                int measureResultInt;
+                if (!int.TryParse(Res, out measureResultInt))
+                {
+                    measureResultInt = 0;
+                }
+
+                int position;
+                if (!int.TryParse(Pos, out position))
+                {
+                    position = 0;
+                }
+
+                var measure = new MES_HAI.Entity.Measure
+                {
+                    HighLimit = highL,
+                    LowLimit = LowL,
+                    MeasureKey = MeasureK,
+                    MeasureNotes = MeasureN,
+                    MeasureValue = MeasureV,
+                    Position = position,
+                    Result = ToMeasureResult(measureResultInt),
+                    Tolerance = Tol,
+                    UnitOfMeasure = UOM
+                };
+
+                measuresList.Add(measure);
+
+                i++;
+
+                if (i % MeasurementReadPauseEveryItems == 0 && i < length)
+                {
+                    Thread.Sleep(MeasurementReadPauseMilliseconds);
+                }
+            }
+
+            return measuresList;
+        }
+
+        private Enums.MeasureResults ToMeasureResult(int measureResultInt)
+        {
+            switch (measureResultInt)
+            {
+                case 0:
+                    return Enums.MeasureResults.Fail;
+                case 1:
+                    return Enums.MeasureResults.Pass;
+                case 2:
+                    return Enums.MeasureResults.False;
+                case 3:
+                    return Enums.MeasureResults.Retouch;
+                default:
+                    return Enums.MeasureResults.Fail;
+            }
+        }
+
+        private int EstimatedLegacyMoveOutPlcReads(int measureCount)
+        {
+            return 8 + (measureCount * 9);
+        }
+
+        private int EstimatedPackedMoveOutPlcReads(int measureCount)
+        {
+            return 8 + (measureCount > 0 ? 1 : 0);
+        }
+
 
         private void ExecuteActionBasedOnTrigger(string opName, int triggerValue)
         {
@@ -1239,6 +1429,10 @@ namespace Zimple
                 {
                     try
                     {
+                        Stopwatch totalStopwatch = Stopwatch.StartNew();
+                        Stopwatch plcReadStopwatch = Stopwatch.StartNew();
+                        PlcOperationSnapshot beforeOperations = tagStore.SnapshotOperations();
+
                         // Additional Parameter LenghtMeasureData
                         int LenghtMeasureData = tagStore.ReadDint(tagStore.GetDint($"{opName}.Serial_MoveOutAndTestResults.LenghtMeasureData"));
                         if (LenghtMeasureData < 0)
@@ -1276,100 +1470,20 @@ namespace Zimple
                                 break;
                         }
 
-                        int i = 0;
-
-                        List<string> destinationList = new List<string>();
-
-                        // Dynamically constructing Measure objects from the measurementData array
-                        List<MES_HAI.Entity.Measure> measuresList = new List<MES_HAI.Entity.Measure>();
-
-                        while (i < LenghtMeasureData)
-
-                        {
-                            /*MeasureData All Parameters
-                                HighLimit = parts[0],
-                                LowLimit = parts[1],
-                                MeasureKey = parts[2],
-                                MeasureNotes = parts[3],
-                                MeasureValue = parts[4],
-                                Position = int.Parse(parts[5]),
-                                Result = parts[6], // Assigning the parsed enum value
-                                Tolerance = parts[7],
-                                UnitOfMeasure = parts[8]
-                             */
-
-
-                            var highlimit = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].HighLimit");
-                            var highL = tagStore.ReadString(highlimit);
-                            var Lowlimit = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].LowLimit");
-                            var LowL = tagStore.ReadString(Lowlimit);
-                            var MeasureKey = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureKey");
-                            var MeasureK = tagStore.ReadString(MeasureKey);
-                            var MeasureNotes = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureNotes");
-                            var MeasureN = tagStore.ReadString(MeasureNotes);
-                            var MeasureValue = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].MeasureValue");
-                            var MeasureV = tagStore.ReadString(MeasureValue);
-                            var Position = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Position");
-                            var Pos = tagStore.ReadString(Position);
-                            var Result = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Result");
-                            var Res = tagStore.ReadString(Result);
-                            var Tolerance = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].Tolerance");
-                            var Tol = tagStore.ReadString(Tolerance);
-                            var UnitOfMeasure = tagStore.GetString($"{opName}.Serial_MoveOutAndTestResults.MeasureData[{i}].UnitOfMeasure");
-                            var UOM = tagStore.ReadString(UnitOfMeasure);
-
-                            // Parse the measure result from parts of the data, assuming it's at a specific index, e.g., parts[6]
-                            int measureResultInt = int.Parse(Res); // Adjust the index based on your actual data structure
-                            Enums.MeasureResults Mresult;
-                            switch (measureResultInt)
-                            {
-                                case 0:
-                                    Mresult = Enums.MeasureResults.Fail;
-                                    break;
-                                case 1:
-                                    Mresult = Enums.MeasureResults.Pass;
-                                    break;
-                                case 2:
-                                    Mresult = Enums.MeasureResults.False;
-                                    break;
-                                case 3:
-                                    Mresult = Enums.MeasureResults.Retouch;
-                                    break;
-                                default:
-                                    Mresult = Enums.MeasureResults.Fail; // Default to Fail if the value doesn't match any known enum
-                                    break;
-                            }
-
-                            var measure = new MES_HAI.Entity.Measure
-                            {
-                                HighLimit = highL,
-                                LowLimit = LowL,
-                                MeasureKey = MeasureK,
-                                MeasureNotes = MeasureN,
-                                MeasureValue = MeasureV,
-                                Position = int.Parse(Pos),
-                                Result = Mresult, // Assigning the parsed enum value
-                                Tolerance = Tol,
-                                UnitOfMeasure = UOM
-                            };
-
-                            measuresList.Add(measure);
-
-                            i++;
-
-                            if (i % MeasurementReadPauseEveryItems == 0 && i < LenghtMeasureData)
-                            {
-                                Thread.Sleep(MeasurementReadPauseMilliseconds);
-                            }
-                        }
+                        string measureReadMode;
+                        List<MES_HAI.Entity.Measure> measuresList =
+                            ReadMoveOutAndTestResultMeasures(opName, LenghtMeasureData, out measureReadMode);
+                        plcReadStopwatch.Stop();
+                        PlcOperationSnapshot afterPlcReads = tagStore.SnapshotOperations();
 
                         // Pass the measures list to the MES system
+                        Stopwatch mesStopwatch = Stopwatch.StartNew();
                         MESIntegration mesIntegration = new MESIntegration();
                         ErrorDetail errorDetail = mesIntegration.Serial_MoveOutAndTestResults(
                             station, serialNumber, result, groupId, groupVersion, measuresList.ToArray(), layer, checkMultiBoard);
+                        mesStopwatch.Stop();
 
                         // Keep the UI/file log compact; full measurement dumps add avoidable pressure during heavy PLC cycles.
-                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
 
                         // Optionally, write the results back to the PLC or perform other finalization actions
                         var responseTag = tagStore.GetStringArray($"{opName}.Response", 2);
@@ -1377,7 +1491,16 @@ namespace Zimple
 
                         var statusTag = tagStore.GetString($"{opName}.Status");
                         tagStore.WriteString(statusTag, "done");
+                        totalStopwatch.Stop();
+                        PlcOperationSnapshot afterAll = tagStore.SnapshotOperations();
 
+                        long plcReads = afterPlcReads.Reads - beforeOperations.Reads;
+                        long plcWrites = afterAll.Writes - beforeOperations.Writes;
+                        int legacyEstimate = EstimatedLegacyMoveOutPlcReads(LenghtMeasureData);
+                        int packedEstimate = EstimatedPackedMoveOutPlcReads(LenghtMeasureData);
+                        int estimatedSavedReads = legacyEstimate - packedEstimate;
+
+                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}, MeasureReadMode: {measureReadMode}, PlcReads: {plcReads}, PlcWrites: {plcWrites}, PlcReadMs: {plcReadStopwatch.ElapsedMilliseconds}, MesMs: {mesStopwatch.ElapsedMilliseconds}, TotalMs: {totalStopwatch.ElapsedMilliseconds}, LegacyReadEstimate: {legacyEstimate}, PackedReadEstimate: {packedEstimate}, EstimatedSavedReadsWhenPacked: {estimatedSavedReads}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
 
 
                     }

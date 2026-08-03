@@ -3,6 +3,7 @@ using libplctag.DataTypes;
 using libplctag.DataTypes.Simple;
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Zimple
 {
@@ -13,6 +14,8 @@ namespace Zimple
         private readonly ConcurrentDictionary<string, ITag> _tags;
         private readonly object _syncRoot = new object();
         private bool _disposed;
+        private long _readOperations;
+        private long _writeOperations;
 
         public PlcTagStore(string ip)
         {
@@ -79,6 +82,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _readOperations);
                 tag.Read();
                 return tag.Value;
             }
@@ -89,6 +93,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _writeOperations);
                 tag.Value = value;
                 tag.Write();
             }
@@ -99,6 +104,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _readOperations);
                 tag.Read();
                 return tag.Value ?? string.Empty;
             }
@@ -109,6 +115,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _writeOperations);
                 tag.Value = value ?? string.Empty;
                 tag.Write();
             }
@@ -119,6 +126,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _readOperations);
                 tag.Read();
                 return tag.Value;
             }
@@ -129,6 +137,7 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _readOperations);
                 tag.Read();
                 return tag.Value ?? new string[0];
             }
@@ -139,9 +148,17 @@ namespace Zimple
             lock (_syncRoot)
             {
                 ThrowIfDisposed();
+                Interlocked.Increment(ref _writeOperations);
                 tag.Value = value ?? new string[0];
                 tag.Write();
             }
+        }
+
+        public PlcOperationSnapshot SnapshotOperations()
+        {
+            return new PlcOperationSnapshot(
+                Interlocked.Read(ref _readOperations),
+                Interlocked.Read(ref _writeOperations));
         }
 
         // -------------------------
@@ -250,5 +267,17 @@ namespace Zimple
             if (_disposed)
                 throw new ObjectDisposedException(nameof(PlcTagStore));
         }
+    }
+
+    public sealed class PlcOperationSnapshot
+    {
+        public PlcOperationSnapshot(long reads, long writes)
+        {
+            Reads = reads;
+            Writes = writes;
+        }
+
+        public long Reads { get; }
+        public long Writes { get; }
     }
 }
