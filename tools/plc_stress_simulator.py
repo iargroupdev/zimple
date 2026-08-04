@@ -3,7 +3,8 @@
 
 This does not talk to a real PLC or MES. It models the current application
 contract: one execution queue per PLC, configurable heavy gate scope for
-trigger 8, and the existing PLC tag structure for Serial_MoveOutAndTestResults.
+trigger 8, and either the legacy or packed PLC tag structure for
+Serial_MoveOutAndTestResults.
 """
 
 import argparse
@@ -66,6 +67,8 @@ class StressModel:
         self.max_heavy_in_flight_by_plc = {}
 
     def moveout_reads(self, measures):
+        if self.args.measure_contract == "packed":
+            return 8 + (1 if measures > 0 else 0)
         return 8 + (9 * measures)
 
     async def plc_io(self, reads, writes):
@@ -204,6 +207,7 @@ def main():
     parser.add_argument("--pause-ms", type=float, default=50.0)
     parser.add_argument("--speedup", type=float, default=1.0)
     parser.add_argument("--gate-scope", choices=["global", "plc", "none"], default="plc")
+    parser.add_argument("--measure-contract", choices=["legacy", "packed"], default="packed")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 

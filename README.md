@@ -36,7 +36,7 @@ The repository includes offline tools to estimate/stress the current PLC request
 
 ```bash
 python3 tools/moveout_plc_call_estimator.py
-python3 tools/plc_stress_simulator.py --plcs 3 --ops-per-plc 40 --moveout-ratio 0.70 --min-measures 45 --max-measures 60 --read-ms 8 --write-ms 8 --speedup 50 --gate-scope plc
+python3 tools/plc_stress_simulator.py --plcs 3 --ops-per-plc 40 --moveout-ratio 0.70 --min-measures 45 --max-measures 60 --read-ms 8 --write-ms 8 --speedup 50 --gate-scope plc --measure-contract packed
 ```
 
-See `PLC_STABILITY_AUDIT.md` and `PLC_STRESS_RESULTS.md`.
+See `PLC_STABILITY_AUDIT.md`, `PLC_STRESS_RESULTS.md`, and `PACKED_MOVEOUT_CONTRACT.md`.

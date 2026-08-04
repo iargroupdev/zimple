@@ -45,6 +45,8 @@ namespace Zimple
         private const int MeasurementReadPauseEveryItems = 5;
         private const int MeasurementReadPauseMilliseconds = 50;
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
+        private const string PackedMeasureDataTagName = "MeasureDataPacked";
+        private const char PackedMeasureDataSeparator = '|';
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> heavyPlcRequestGatesByIp =
             new ConcurrentDictionary<string, SemaphoreSlim>();
 
@@ -844,7 +846,68 @@ namespace Zimple
                 return new List<MES_HAI.Entity.Measure>();
             }
 
-            return ReadLegacyMoveOutAndTestResultMeasures(opName, length);
+            return ReadPackedMoveOutAndTestResultMeasures(opName, length);
+        }
+
+        private List<MES_HAI.Entity.Measure> ReadPackedMoveOutAndTestResultMeasures(string opName, int length)
+        {
+            var packedTag = tagStore.GetStringArray(
+                $"{opName}.Serial_MoveOutAndTestResults.{PackedMeasureDataTagName}",
+                length);
+            string[] rows = tagStore.ReadStringArray(packedTag);
+
+            if (rows == null || rows.Length < length)
+            {
+                throw new InvalidOperationException($"Packed MeasureData returned {rows?.Length ?? 0} rows for expected length {length}.");
+            }
+
+            List<MES_HAI.Entity.Measure> measures = new List<MES_HAI.Entity.Measure>();
+            for (int i = 0; i < length; i++)
+            {
+                string row = rows[i] ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(row))
+                {
+                    continue;
+                }
+
+                measures.Add(ParsePackedMeasure(row, i));
+            }
+
+            return measures;
+        }
+
+        private MES_HAI.Entity.Measure ParsePackedMeasure(string row, int index)
+        {
+            string[] parts = row.Split(PackedMeasureDataSeparator);
+            if (parts.Length < 9)
+            {
+                throw new FormatException($"Packed MeasureData row {index} has {parts.Length} fields; expected 9.");
+            }
+
+            int position;
+            if (!int.TryParse(parts[5], out position))
+            {
+                position = 0;
+            }
+
+            int measureResultInt;
+            if (!int.TryParse(parts[6], out measureResultInt))
+            {
+                measureResultInt = 0;
+            }
+
+            return new MES_HAI.Entity.Measure
+            {
+                HighLimit = parts[0],
+                LowLimit = parts[1],
+                MeasureKey = parts[2],
+                MeasureNotes = parts[3],
+                MeasureValue = parts[4],
+                Position = position,
+                Result = ToMeasureResult(measureResultInt),
+                Tolerance = parts[7],
+                UnitOfMeasure = parts[8]
+            };
         }
 
         private List<MES_HAI.Entity.Measure> ReadLegacyMoveOutAndTestResultMeasures(string opName, int length)
@@ -931,6 +994,11 @@ namespace Zimple
         private int EstimatedLegacyMoveOutPlcReads(int measureCount)
         {
             return 8 + (measureCount * 9);
+        }
+
+        private int EstimatedPackedMoveOutPlcReads(int measureCount)
+        {
+            return 8 + (measureCount > 0 ? 1 : 0);
         }
 
         private SemaphoreSlim GetHeavyPlcRequestGate()
@@ -1409,8 +1477,10 @@ namespace Zimple
                         long plcReads = afterPlcReads.Reads - beforeOperations.Reads;
                         long plcWrites = afterAll.Writes - beforeOperations.Writes;
                         int legacyEstimate = EstimatedLegacyMoveOutPlcReads(LenghtMeasureData);
+                        int packedEstimate = EstimatedPackedMoveOutPlcReads(LenghtMeasureData);
+                        int estimatedSavedReads = legacyEstimate - packedEstimate;
 
-                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}, PlcReads: {plcReads}, PlcWrites: {plcWrites}, PlcReadMs: {plcReadStopwatch.ElapsedMilliseconds}, MesMs: {mesStopwatch.ElapsedMilliseconds}, TotalMs: {totalStopwatch.ElapsedMilliseconds}, ExpectedCurrentContractReads: {legacyEstimate}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
+                        Log(opName, $"Invoking method Serial_MoveOutAndTestResults for station: {station} with SerialNumber: {serialNumber}, result: {result}, layer: {layer}, checkMultiBoard: {checkMultiBoard}, Measurements: {measuresList.Count}, MeasureReadMode: packed-array, PlcReads: {plcReads}, PlcWrites: {plcWrites}, PlcReadMs: {plcReadStopwatch.ElapsedMilliseconds}, MesMs: {mesStopwatch.ElapsedMilliseconds}, TotalMs: {totalStopwatch.ElapsedMilliseconds}, LegacyReadEstimate: {legacyEstimate}, PackedReadEstimate: {packedEstimate}, EstimatedSavedReads: {estimatedSavedReads}. Returned ErrorCode: {errorDetail.ErrorCode}, ErrorDescription: {errorDetail.ErrorDescription}\n\n");
 
 
                     }
