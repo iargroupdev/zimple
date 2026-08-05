@@ -28,16 +28,16 @@ The application still reads the same header fields:
 
 ## Row Format
 
-Each array element must contain 9 fields separated by `|`:
+Each array element must contain 9 fields separated by `/`:
 
 ```text
-HighLimit|LowLimit|MeasureKey|MeasureNotes|MeasureValue|Position|Result|Tolerance|UnitOfMeasure
+HighLimit/LowLimit/MeasureKey/MeasureNotes/MeasureValue/Position/Result/Tolerance/UnitOfMeasure
 ```
 
 Example:
 
 ```text
-10.5|9.5|WIDTH_A|OK|10.1|1|1|0.5|mm
+10.5/9.5/WIDTH_A/OK/10.1/1/1/0.5/mm
 ```
 
 `Result` mapping:
