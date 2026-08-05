@@ -105,7 +105,13 @@ namespace Zimple
 
         public void ConnectFromParent()
         {
-            Connect_Click(null, null);
+            if (!isUiReady)
+            {
+                Dispatcher.BeginInvoke(new System.Action(ConnectFromParent), DispatcherPriority.Loaded);
+                return;
+            }
+
+            Dispatcher.BeginInvoke(new System.Action(() => Connect_Click(null, null)), DispatcherPriority.Background);
         }
 
         private void UpdateConnectionStatus(bool connected)
