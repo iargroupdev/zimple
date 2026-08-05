@@ -46,7 +46,7 @@ namespace Zimple
         private const int MeasurementReadPauseEveryItems = 5;
         private const int MeasurementReadPauseMilliseconds = 50;
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
-        private const string PackedMeasureDataTagName = "MeasureDataPacked";
+        private const string PackedMeasureDataTagName = "MeasureStringArray";
         private const char PackedMeasureDataSeparator = '|';
         private const string LogPackedMoveOutParsedMeasuresSetting = "LogPackedMoveOutParsedMeasures";
         private const string MockMoveOutAndTestResultsMesSetting = "UseMockMesForMoveOutAndTestResults";
