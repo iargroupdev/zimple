@@ -78,3 +78,22 @@ There is no automatic fallback to the legacy `MeasureData[i].Field` reads in thi
 The per-PLC heavy gate remains in place. It protects each PLC from overlapping heavy trigger 8 requests while allowing different PLCs to progress in parallel.
 
 Important PLC-side check: each packed row must fit inside the PLC string type exposed to the application. If the combined 9 fields can exceed the string capacity, increase the PLC string size or choose shorter field values before using this version in production. A truncated row will be parsed incorrectly or rejected.
+
+## Test Mode Without CIMPLE
+
+For PLC/parsing tests without the live CIMPLE server, set these values in `Zimple/App.config` before building/running:
+
+```xml
+<add key="LogPackedMoveOutParsedMeasures" value="true"/>
+<add key="UseMockMesForMoveOutAndTestResults" value="true"/>
+```
+
+`LogPackedMoveOutParsedMeasures=true` writes every parsed measure to the live OP log.
+
+`UseMockMesForMoveOutAndTestResults=true` skips the real `MES_HAI.Serial_MoveOutAndTestResults` call and returns a local success response:
+
+```text
+MOCK MES OK - parsed N packed measures
+```
+
+Keep both values `false` for production.

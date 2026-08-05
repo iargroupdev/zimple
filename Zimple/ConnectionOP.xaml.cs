@@ -10,6 +10,7 @@ using Microsoft.SqlServer.Server;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Concurrent;
+using System.Configuration;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -47,6 +48,8 @@ namespace Zimple
         private const int HeavyTriggerPostDelayMilliseconds = 1500;
         private const string PackedMeasureDataTagName = "MeasureDataPacked";
         private const char PackedMeasureDataSeparator = '|';
+        private const string LogPackedMoveOutParsedMeasuresSetting = "LogPackedMoveOutParsedMeasures";
+        private const string MockMoveOutAndTestResultsMesSetting = "UseMockMesForMoveOutAndTestResults";
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> heavyPlcRequestGatesByIp =
             new ConcurrentDictionary<string, SemaphoreSlim>();
 
@@ -849,6 +852,14 @@ namespace Zimple
             return ReadPackedMoveOutAndTestResultMeasures(opName, length);
         }
 
+        private bool IsAppSettingEnabled(string key)
+        {
+            return string.Equals(
+                ConfigurationManager.AppSettings[key],
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
         private List<MES_HAI.Entity.Measure> ReadPackedMoveOutAndTestResultMeasures(string opName, int length)
         {
             var packedTag = tagStore.GetStringArray(
@@ -908,6 +919,46 @@ namespace Zimple
                 Tolerance = parts[7],
                 UnitOfMeasure = parts[8]
             };
+        }
+
+        private void LogMoveOutParsedMeasures(string opName, List<MES_HAI.Entity.Measure> measures)
+        {
+            if (!IsAppSettingEnabled(LogPackedMoveOutParsedMeasuresSetting))
+            {
+                return;
+            }
+
+            Log(opName, $"Parsed packed MoveOutAndTestResults measures: Count={measures.Count}\n");
+            for (int i = 0; i < measures.Count; i++)
+            {
+                MES_HAI.Entity.Measure measure = measures[i];
+                Log(opName,
+                    $"Measure[{i}] HighLimit={measure.HighLimit}, LowLimit={measure.LowLimit}, MeasureKey={measure.MeasureKey}, MeasureNotes={measure.MeasureNotes}, MeasureValue={measure.MeasureValue}, Position={measure.Position}, Result={measure.Result}, Tolerance={measure.Tolerance}, UnitOfMeasure={measure.UnitOfMeasure}\n");
+            }
+        }
+
+        private ErrorDetail InvokeMoveOutAndTestResults(
+            string station,
+            string serialNumber,
+            Enums.Results result,
+            string groupId,
+            string groupVersion,
+            List<MES_HAI.Entity.Measure> measuresList,
+            int layer,
+            bool checkMultiBoard)
+        {
+            if (IsAppSettingEnabled(MockMoveOutAndTestResultsMesSetting))
+            {
+                return new ErrorDetail
+                {
+                    ErrorCode = 0,
+                    ErrorDescription = $"MOCK MES OK - parsed {measuresList.Count} packed measures"
+                };
+            }
+
+            MESIntegration mesIntegration = new MESIntegration();
+            return mesIntegration.Serial_MoveOutAndTestResults(
+                station, serialNumber, result, groupId, groupVersion, measuresList.ToArray(), layer, checkMultiBoard);
         }
 
         private List<MES_HAI.Entity.Measure> ReadLegacyMoveOutAndTestResultMeasures(string opName, int length)
@@ -1453,14 +1504,14 @@ namespace Zimple
 
                         List<MES_HAI.Entity.Measure> measuresList =
                             ReadMoveOutAndTestResultMeasures(opName, LenghtMeasureData);
+                        LogMoveOutParsedMeasures(opName, measuresList);
                         plcReadStopwatch.Stop();
                         PlcOperationSnapshot afterPlcReads = tagStore.SnapshotOperations();
 
                         // Pass the measures list to the MES system
                         Stopwatch mesStopwatch = Stopwatch.StartNew();
-                        MESIntegration mesIntegration = new MESIntegration();
-                        ErrorDetail errorDetail = mesIntegration.Serial_MoveOutAndTestResults(
-                            station, serialNumber, result, groupId, groupVersion, measuresList.ToArray(), layer, checkMultiBoard);
+                        ErrorDetail errorDetail = InvokeMoveOutAndTestResults(
+                            station, serialNumber, result, groupId, groupVersion, measuresList, layer, checkMultiBoard);
                         mesStopwatch.Stop();
 
                         // Keep the UI/file log compact; full measurement dumps add avoidable pressure during heavy PLC cycles.
