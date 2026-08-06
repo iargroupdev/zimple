@@ -1,0 +1,45 @@
+name: Build ZimpleTesting installer
+
+on:
+  push:
+    branches:
+      - codex/zimpletesting-production-test
+    tags:
+      - zimpletesting-production-test-*
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore packages
+        run: nuget restore ZimpleTesting.sln
+
+      - name: Publish ClickOnce installer
+        run: >
+          msbuild ZimpleTesting.sln
+          "/t:Clean;Publish"
+          /p:Configuration=Release
+          /p:Platform="Any CPU"
+          /p:PublishDir="${{ github.workspace }}\artifacts\ZimpleTesting_installer\"
+          /p:PublishUrl="${{ github.workspace }}\artifacts\ZimpleTesting_installer\"
+          /p:InstallUrl="${{ github.workspace }}\artifacts\ZimpleTesting_installer\"
+          /p:UpdateEnabled=false
+          /m
+          /v:m
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZimpleTesting_installer
+          path: artifacts/ZimpleTesting_installer

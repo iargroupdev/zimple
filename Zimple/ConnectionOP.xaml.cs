@@ -238,7 +238,7 @@ namespace Zimple
                 string baseFolder = Environment.GetFolderPath(
                     Environment.SpecialFolder.LocalApplicationData);
 
-                string appFolder = System.IO.Path.Combine(baseFolder, "Zimple");
+                string appFolder = System.IO.Path.Combine(baseFolder, "ZimpleTesting");
 
                 // fallback se não houver IP (muito importante)
                 string ipFolder = string.IsNullOrEmpty(plcIpAddress) ? "NO_IP" : plcIpAddress;
@@ -269,7 +269,7 @@ namespace Zimple
                     // fallback de emergência (nunca perder erro de logging)
                     string fallbackPath = System.IO.Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                        "Zimple_LogError.txt");
+                        "ZimpleTesting_LogError.txt");
 
                     System.IO.File.AppendAllText(fallbackPath,
                         $"[{DateTime.Now}] LOGGING FAILURE: {ex}\n");

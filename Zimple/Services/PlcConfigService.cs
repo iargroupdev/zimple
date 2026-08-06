@@ -11,7 +11,7 @@ namespace Zimple.Services
         private static string AppFolder =>
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Zimple");
+                "ZimpleTesting");
 
         private static string FilePath =>
             Path.Combine(AppFolder, "plcconfig.json");

@@ -15,11 +15,11 @@ namespace Zimple
         public static void Main()
         {
             bool createdNew;
-            mutex = new Mutex(true, "Zimple_AllInOne_SingleInstance", out createdNew);
+            mutex = new Mutex(true, "ZimpleTesting_AllInOne_SingleInstance", out createdNew);
 
             if (!createdNew)
             {
-                MessageBox.Show("An instance of the application is already running.");
+                MessageBox.Show("An instance of ZimpleTesting is already running.");
                 return;
             }
 
