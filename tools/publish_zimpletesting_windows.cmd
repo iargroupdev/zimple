@@ -3,7 +3,7 @@ setlocal
 
 set "ROOT=%~dp0.."
 set "CONFIG=Release"
-set "PUBLISH_DIR=C:\Users\Zeugma\Desktop\ZimpleTesting_installer\"
+set "PUBLISH_DIR=C:\Users\Zeugma\Desktop\ZimpleTesting_installer"
 
 if /I "%~1"=="debug" set "CONFIG=Debug"
 
@@ -33,7 +33,7 @@ echo Using MSBuild:
 echo %MSBUILD%
 echo.
 
-"%MSBUILD%" "%ROOT%\ZimpleTesting.sln" /t:Restore;Clean;Publish /p:Configuration=%CONFIG% /p:Platform="Any CPU" /p:PublishDir="%PUBLISH_DIR%" /p:PublishUrl="%PUBLISH_DIR%" /p:InstallUrl="%PUBLISH_DIR%" /p:UpdateEnabled=false /m /v:m
+"%MSBUILD%" "%ROOT%\ZimpleTesting.sln" "/t:Restore;Clean;Publish" "/p:Configuration=%CONFIG%" "/p:Platform=Any CPU" "/p:PublishDir=%PUBLISH_DIR%\\" "/p:PublishUrl=%PUBLISH_DIR%\\" "/p:InstallUrl=%PUBLISH_DIR%\\" "/p:UpdateEnabled=false" /m /v:m
 set "BUILD_EXIT=%errorlevel%"
 
 echo.
