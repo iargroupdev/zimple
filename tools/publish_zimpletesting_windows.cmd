@@ -1,18 +1,32 @@
 @echo off
 setlocal
 
-set "ROOT=%~dp0.."
+set "SOURCE_ROOT=%~dp0.."
+set "ROOT=C:\zimple\ZimpleTesting_work_local"
 set "CONFIG=Release"
-set "PUBLISH_DIR=C:\Users\Zeugma\Desktop\ZimpleTesting_installer"
+set "PUBLISH_DIR=C:\zimple\ZimpleTesting_installer"
 
 if /I "%~1"=="debug" set "CONFIG=Debug"
 
 echo.
 echo Publishing ZimpleTesting
+echo Source:  %SOURCE_ROOT%
 echo Root:    %ROOT%
 echo Config:  %CONFIG%
 echo Publish: %PUBLISH_DIR%
 echo.
+
+if not exist "C:\zimple" mkdir "C:\zimple"
+
+echo Copying source to local Windows disk...
+robocopy "%SOURCE_ROOT%" "%ROOT%" /MIR /XD .git bin obj /XF .DS_Store >nul
+if errorlevel 8 (
+    echo Robocopy failed with code %errorlevel%.
+    pause
+    exit /b %errorlevel%
+)
+
+if not exist "%PUBLISH_DIR%" mkdir "%PUBLISH_DIR%"
 
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if not exist "%VSWHERE%" (
