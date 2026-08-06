@@ -72,8 +72,10 @@ namespace Zimple
         private CancellationTokenSource queueCancellation;
         private Task queueWorker;
         private volatile bool isProcessingQueue = false;
+        private volatile bool isConnecting = false;
         private bool isShuttingDown = false;
         private string lastDisplayedOperations = string.Empty;
+        private bool suppressIpChangeDisconnect = false;
 
         private bool isUiReady = false;
 
@@ -105,13 +107,35 @@ namespace Zimple
 
         public void ConnectFromParent()
         {
-            if (!isUiReady)
-            {
-                Dispatcher.BeginInvoke(new System.Action(ConnectFromParent), DispatcherPriority.Loaded);
-                return;
-            }
-
             Dispatcher.BeginInvoke(new System.Action(() => Connect_Click(null, null)), DispatcherPriority.Background);
+        }
+
+        public void SetIpAddress(string ipAddress, bool readOnly)
+        {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+                return;
+
+            string[] parts = ipAddress.Split('.');
+            if (parts.Length != 4)
+                return;
+
+            suppressIpChangeDisconnect = true;
+            try
+            {
+                ipPart1.Text = parts[0];
+                ipPart2.Text = parts[1];
+                ipPart3.Text = parts[2];
+                ipPart4.Text = parts[3];
+
+                ipPart1.IsReadOnly = readOnly;
+                ipPart2.IsReadOnly = readOnly;
+                ipPart3.IsReadOnly = readOnly;
+                ipPart4.IsReadOnly = readOnly;
+            }
+            finally
+            {
+                suppressIpChangeDisconnect = false;
+            }
         }
 
         private void UpdateConnectionStatus(bool connected)
@@ -318,6 +342,10 @@ namespace Zimple
                     return;
                 }
 
+                isConnecting = true;
+                StopPlcPolling();
+                ClearPendingTriggers();
+
                 await AttemptConnectionAsync(plcIp);
 
                 // proteção extra
@@ -363,6 +391,7 @@ namespace Zimple
             }
             finally
             {
+                isConnecting = false;
                 connectButton.IsEnabled = true;
                 connectionGate.Release();
             }
@@ -403,6 +432,9 @@ namespace Zimple
 
         private async void CheckHeartbeat_Tick(object sender, EventArgs e)
         {
+            if (isConnecting)
+                return;
+
             if (isProcessingQueue)
                 return;
 
@@ -554,9 +586,6 @@ namespace Zimple
 
         private void ClearOperationsUI()
         {
-            if (!isUiReady)
-                return;
-
             Dispatcher.Invoke(() =>
             {
                 if (opNamesTextBox != null)
@@ -566,6 +595,7 @@ namespace Zimple
                 }
 
                 cimpleOperationNames?.Clear();
+                lastDisplayedOperations = string.Empty;
             });
         }
 
@@ -573,6 +603,26 @@ namespace Zimple
         {
             isConnected = false;
 
+            StopPlcPolling();
+            ClearPendingTriggers();
+
+            try
+            {
+                tagStore?.Dispose();
+            }
+            catch { }
+            finally
+            {
+                tagStore = null;
+                myTag = null;
+            }
+
+            ClearOperationsUI();
+            UpdateConnectionStatus(false);
+        }
+
+        private void StopPlcPolling()
+        {
             try
             {
                 if (heartbeatTimer != null)
@@ -586,21 +636,15 @@ namespace Zimple
                 checkTriggerTimer.Tick -= CheckTrigger_Tick;
             }
             catch { }
+        }
 
+        private void ClearPendingTriggers()
+        {
             while (triggerQueue.TryDequeue(out _))
             {
             }
-
-            try
-            {
-                tagStore?.Dispose();
-                tagStore = null;
-            }
-            catch { }
-
-            ClearOperationsUI();
-            UpdateConnectionStatus(false);
         }
+
 
         private void ShutdownConnection()
         {
@@ -619,6 +663,9 @@ namespace Zimple
 
         private async void CheckConnection_Tick(object sender, EventArgs e)
         {
+            if (isConnecting)
+                return;
+
             if (!hasAttemptedInitialConnection)
                 return;
 
@@ -641,6 +688,21 @@ namespace Zimple
                 bool ok = await Task.Run(() => AttemptConnectionCore(currentIp));
                 isConnected = ok;
                 plcIpAddress = currentIp;
+                string[] opNames = null;
+                Exception opNamesError = null;
+
+                if (ok)
+                {
+                    try
+                    {
+                        var opNamesTag = tagStore.GetStringArray("CIMPLE.OPnames", MaxOperationNames);
+                        opNames = tagStore.ReadStringArray(opNamesTag);
+                    }
+                    catch (Exception ex)
+                    {
+                        opNamesError = ex;
+                    }
+                }
 
                 Dispatcher.Invoke(() =>
                 {
@@ -649,6 +711,16 @@ namespace Zimple
                     {
                         InitializeHeartbeatTimer();
                         InitializeTriggerCheckTimer(currentIp);
+
+                        if (opNamesError == null)
+                        {
+                            DisplayOpNames(opNames);
+                            CreateOpDebugTabs(opNames);
+                        }
+                        else
+                        {
+                            Log(null, $"Error reading OP names after reconnect: {opNamesError.Message}\n");
+                        }
                     }
                 });
             }
@@ -678,6 +750,9 @@ namespace Zimple
 
         private void IpPart_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (suppressIpChangeDisconnect)
+                return;
+
             System.Windows.Controls.TextBox textBox = sender as System.Windows.Controls.TextBox;
             if (textBox != null && !string.IsNullOrWhiteSpace(textBox.Text))
             {
@@ -727,6 +802,7 @@ namespace Zimple
 
         private async void CheckTrigger_Tick(object sender, EventArgs e)
         {
+            if (isConnecting) return;
             if (!isConnected) return;
             if (isShuttingDown) return;
             if (isProcessingQueue) return;
@@ -811,9 +887,6 @@ namespace Zimple
 
         private void DisplayOpNames(string[] opNames)
         {
-            if (!isUiReady)
-                return;
-
             string displayText;
             System.Windows.FontStyle fontStyle;
 
@@ -1989,10 +2062,18 @@ namespace Zimple
 
         private void LoadSettings()
         {
-            ipPart1.Text = Properties.Settings.Default.IpPart1;
-            ipPart2.Text = Properties.Settings.Default.IpPart2;
-            ipPart3.Text = Properties.Settings.Default.IpPart3;
-            ipPart4.Text = Properties.Settings.Default.IpPart4;
+            suppressIpChangeDisconnect = true;
+            try
+            {
+                ipPart1.Text = Properties.Settings.Default.IpPart1;
+                ipPart2.Text = Properties.Settings.Default.IpPart2;
+                ipPart3.Text = Properties.Settings.Default.IpPart3;
+                ipPart4.Text = Properties.Settings.Default.IpPart4;
+            }
+            finally
+            {
+                suppressIpChangeDisconnect = false;
+            }
             //stationInput.Text = Properties.Settings.Default.StationName;
             //userInput.Text = Properties.Settings.Default.UserName;
             //passwordInput.Password = Properties.Settings.Default.Password;

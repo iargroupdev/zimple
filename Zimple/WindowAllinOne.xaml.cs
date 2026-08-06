@@ -43,21 +43,8 @@ namespace Zimple
                 if (plc == null || string.IsNullOrWhiteSpace(plc.IpAddress))
                     continue;
 
-                var parts = plc.IpAddress.Split('.');
-                if (parts.Length != 4)
-                    continue;
-
                 ConnectionOP uc = new ConnectionOP();
-
-                uc.ipPart1.Text = parts[0];
-                uc.ipPart2.Text = parts[1];
-                uc.ipPart3.Text = parts[2];
-                uc.ipPart4.Text = parts[3];
-
-                uc.ipPart1.IsReadOnly = true;
-                uc.ipPart2.IsReadOnly = true;
-                uc.ipPart3.IsReadOnly = true;
-                uc.ipPart4.IsReadOnly = true;
+                uc.SetIpAddress(plc.IpAddress, true);
 
                 // Create status dot
                 Ellipse statusDot = new Ellipse
