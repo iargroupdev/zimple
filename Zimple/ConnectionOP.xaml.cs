@@ -2131,6 +2131,18 @@ namespace Zimple
 
                         ExecuteActionBasedOnTrigger(item.opName, item.trigger);
                     }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Queue worker error on trigger {item.trigger} / {item.opName}: {ex}");
+                        try
+                        {
+                            Dispatcher.Invoke(() =>
+                                Log(item.opName, $"Queue worker error on trigger {item.trigger}: {ex.Message}\n"));
+                        }
+                        catch
+                        {
+                        }
+                    }
                     finally
                     {
                         if (heavyGateTaken)

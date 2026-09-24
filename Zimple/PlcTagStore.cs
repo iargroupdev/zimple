@@ -83,8 +83,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _readOperations);
-                tag.Read();
-                return tag.Value;
+                return ExecutePlcAccess("read", tag, () =>
+                {
+                    tag.Read();
+                    return tag.Value;
+                });
             }
         }
 
@@ -94,8 +97,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _writeOperations);
-                tag.Value = value;
-                tag.Write();
+                ExecutePlcAccess("write", tag, () =>
+                {
+                    tag.Value = value;
+                    tag.Write();
+                });
             }
         }
 
@@ -105,8 +111,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _readOperations);
-                tag.Read();
-                return tag.Value ?? string.Empty;
+                return ExecutePlcAccess("read", tag, () =>
+                {
+                    tag.Read();
+                    return tag.Value ?? string.Empty;
+                });
             }
         }
 
@@ -116,8 +125,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _writeOperations);
-                tag.Value = value ?? string.Empty;
-                tag.Write();
+                ExecutePlcAccess("write", tag, () =>
+                {
+                    tag.Value = value ?? string.Empty;
+                    tag.Write();
+                });
             }
         }
 
@@ -127,8 +139,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _readOperations);
-                tag.Read();
-                return tag.Value;
+                return ExecutePlcAccess("read", tag, () =>
+                {
+                    tag.Read();
+                    return tag.Value;
+                });
             }
         }
 
@@ -138,8 +153,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _readOperations);
-                tag.Read();
-                return tag.Value ?? new string[0];
+                return ExecutePlcAccess("read", tag, () =>
+                {
+                    tag.Read();
+                    return tag.Value ?? new string[0];
+                });
             }
         }
 
@@ -149,8 +167,11 @@ namespace Zimple
             {
                 ThrowIfDisposed();
                 Interlocked.Increment(ref _writeOperations);
-                tag.Value = value ?? new string[0];
-                tag.Write();
+                ExecutePlcAccess("write", tag, () =>
+                {
+                    tag.Value = value ?? new string[0];
+                    tag.Write();
+                });
             }
         }
 
@@ -177,7 +198,7 @@ namespace Zimple
                 Timeout = TimeSpan.FromSeconds(3)
             };
 
-            tag.Initialize();
+            ExecutePlcAccess("initialize", tag, () => tag.Initialize());
             return tag;
         }
 
@@ -194,7 +215,7 @@ namespace Zimple
                     Timeout = TimeSpan.FromSeconds(3)
                 };
 
-            tag.Initialize();
+            ExecutePlcAccess("initialize", tag, () => tag.Initialize());
             return tag;
         }
 
@@ -212,7 +233,7 @@ namespace Zimple
                     ArrayDimensions = new[] { length }
                 };
 
-            tag.Initialize();
+            ExecutePlcAccess("initialize", tag, () => tag.Initialize());
             return tag;
         }
 
@@ -229,7 +250,7 @@ namespace Zimple
                     Timeout = TimeSpan.FromSeconds(3)
                 };
 
-            tag.Initialize();
+            ExecutePlcAccess("initialize", tag, () => tag.Initialize());
             return tag;
         }
 
@@ -267,6 +288,58 @@ namespace Zimple
             if (_disposed)
                 throw new ObjectDisposedException(nameof(PlcTagStore));
         }
+
+        private void ExecutePlcAccess(string operation, ITag tag, Action action)
+        {
+            ExecutePlcAccess<object>(operation, tag, () =>
+            {
+                action();
+                return null;
+            });
+        }
+
+        private T ExecutePlcAccess<T>(string operation, ITag tag, Func<T> action)
+        {
+            try
+            {
+                return action();
+            }
+            catch (LibPlcTagException ex)
+            {
+                throw new PlcCommunicationException(_ip, GetTagName(tag), operation, ex);
+            }
+        }
+
+        private static string GetTagName(ITag tag)
+        {
+            if (tag == null)
+                return "<null>";
+
+            try
+            {
+                object value = tag.GetType().GetProperty("Name")?.GetValue(tag, null);
+                return value as string ?? tag.GetType().Name;
+            }
+            catch
+            {
+                return tag.GetType().Name;
+            }
+        }
+    }
+
+    public sealed class PlcCommunicationException : Exception
+    {
+        public PlcCommunicationException(string ip, string tagName, string operation, Exception innerException)
+            : base($"PLC communication failed during {operation} on {ip}, tag '{tagName}': {innerException.Message}", innerException)
+        {
+            Ip = ip;
+            TagName = tagName;
+            Operation = operation;
+        }
+
+        public string Ip { get; }
+        public string TagName { get; }
+        public string Operation { get; }
     }
 
     public sealed class PlcOperationSnapshot
