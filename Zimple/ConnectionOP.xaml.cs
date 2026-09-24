@@ -435,9 +435,6 @@ namespace Zimple
             if (isConnecting)
                 return;
 
-            if (isProcessingQueue)
-                return;
-
             if (!await heartbeatGate.WaitAsync(0))
                 return;
 
