@@ -75,6 +75,7 @@ namespace Zimple
         private volatile bool isConnecting = false;
         private bool isShuttingDown = false;
         private string lastDisplayedOperations = string.Empty;
+        private string lastPlcConnectionIssue = string.Empty;
         private bool suppressIpChangeDisconnect = false;
 
         private bool isUiReady = false;
@@ -442,9 +443,22 @@ namespace Zimple
 
             try
             {
-                bool ok = await Task.Run(() => CheckHeartbeatCore());
-                isConnected = ok;
-                UpdateConnectionStatus(ok);
+                bool wasConnected = isConnected;
+                PlcConnectionCheckResult result = await Task.Run(() => CheckHeartbeatCore());
+                isConnected = result.Ok;
+                UpdateConnectionStatus(result.Ok);
+
+                if (result.Ok)
+                {
+                    lastPlcConnectionIssue = string.Empty;
+                }
+                else
+                {
+                    LogPlcConnectionIssue(
+                        "heartbeat",
+                        result.Message,
+                        wasConnected);
+                }
             }
             finally
             {
@@ -452,14 +466,14 @@ namespace Zimple
             }
         }
 
-        private bool CheckHeartbeatCore()
+        private PlcConnectionCheckResult CheckHeartbeatCore()
         {
             try
             {
                 PlcTagStore store = tagStore;
                 TagDint heartbeatTag = myTag;
                 if (store == null || heartbeatTag == null)
-                    return false;
+                    return PlcConnectionCheckResult.Fail("TagStore or heartbeat tag is not initialized.");
 
                 // O heartbeat É o teste real de conectividade
                 int tagValue = store.ReadDint(heartbeatTag);
@@ -470,23 +484,24 @@ namespace Zimple
                     store.WriteDint(heartbeatTag, 1);
                 }
 
-                return true;
+                return PlcConnectionCheckResult.Success();
             }
             catch (Exception ex)
             {
                 // Qualquer exceção aqui significa: PLC não acessível neste momento
                 Console.WriteLine($"Error in CheckHeartbeat: {ex.Message}");
-                return false;
+                return PlcConnectionCheckResult.Fail(DescribeException(ex));
             }
         }
 
-        private bool AttemptConnectionCore(string ip)
+        private PlcConnectionCheckResult AttemptConnectionCore(string ip)
         {
             try
             {
                 // Teste rápido de reachability (ping)
-                if (!IsPlcReachable(ip))
-                    return false;
+                string reachabilityError;
+                if (!IsPlcReachable(ip, out reachabilityError))
+                    return PlcConnectionCheckResult.Fail(reachabilityError);
 
                 // Limpar gates de execução (novo contexto)
                 lock (opExecutionGates)
@@ -524,7 +539,7 @@ namespace Zimple
                 if (value == 0)
                     tagStore.WriteDint(myTag, 1);
 
-                return true;
+                return PlcConnectionCheckResult.Success();
             }
             catch (Exception ex)
             {
@@ -540,29 +555,41 @@ namespace Zimple
                 tagStore = null;
                 myTag = null;
 
-                return false;
+                return PlcConnectionCheckResult.Fail(DescribeException(ex));
             }
         }
 
 
         private async Task AttemptConnectionAsync(string ip)
         {
-            bool ok = await Task.Run(() => AttemptConnectionCore(ip));
-            isConnected = ok;
+            PlcConnectionCheckResult result = await Task.Run(() => AttemptConnectionCore(ip));
+            isConnected = result.Ok;
 
             Dispatcher.Invoke(() =>
             {
-                UpdateConnectionStatus(ok);
+                UpdateConnectionStatus(result.Ok);
 
-                if (ok)
+                if (result.Ok)
                 {
+                    lastPlcConnectionIssue = string.Empty;
+                    Log(null, $"PLC connection established on {ip}.\n");
                     InitializeHeartbeatTimer();
+                }
+                else
+                {
+                    LogPlcConnectionIssue("connect", result.Message, true);
                 }
             });
         }
 
         // Helper method to check if the PLC is reachable
         private bool IsPlcReachable(string ip)
+        {
+            string reason;
+            return IsPlcReachable(ip, out reason);
+        }
+
+        private bool IsPlcReachable(string ip, out string reason)
         {
             try
             {
@@ -571,16 +598,57 @@ namespace Zimple
                     PingReply reply = ping.Send(ip, 500); // Ping with a timeout of 500 milliseconds
                     if (reply.Status == IPStatus.Success)
                     {
-
-                        //StartTriggerChecking();
+                        reason = null;
+                        return true;
                     }
-                    return reply.Status == IPStatus.Success;
+
+                    reason = $"Ping to PLC {ip} failed with status {reply.Status}.";
+                    return false;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                reason = $"Ping to PLC {ip} threw {DescribeException(ex)}.";
                 return false;
             }
+        }
+
+        private void LogPlcConnectionIssue(string stage, string message, bool force)
+        {
+            string ip = string.IsNullOrWhiteSpace(plcIpAddress)
+                ? $"{ipPart1.Text}.{ipPart2.Text}.{ipPart3.Text}.{ipPart4.Text}"
+                : plcIpAddress;
+
+            string normalized = string.IsNullOrWhiteSpace(message)
+                ? "No additional error detail available."
+                : message.Trim();
+
+            string issueKey = $"{stage}|{ip}|{normalized}";
+            if (!force && string.Equals(lastPlcConnectionIssue, issueKey, StringComparison.Ordinal))
+                return;
+
+            lastPlcConnectionIssue = issueKey;
+            Log(null, $"PLC connection issue on {ip} during {stage}: {normalized}\n");
+        }
+
+        private static string DescribeException(Exception ex)
+        {
+            if (ex == null)
+                return "unknown exception";
+
+            PlcCommunicationException plcEx = ex as PlcCommunicationException;
+            if (plcEx != null)
+            {
+                string detail = $"{plcEx.Operation} tag '{plcEx.TagName}' on {plcEx.Ip}: {plcEx.InnerException?.Message ?? plcEx.Message}";
+                if (plcEx.InnerException != null)
+                    detail += $" ({plcEx.InnerException.GetType().Name})";
+                return detail;
+            }
+
+            if (ex.InnerException != null)
+                return $"{ex.GetType().Name}: {ex.Message}; inner {ex.InnerException.GetType().Name}: {ex.InnerException.Message}";
+
+            return $"{ex.GetType().Name}: {ex.Message}";
         }
 
         private void ClearOperationsUI()
@@ -684,13 +752,14 @@ namespace Zimple
 
             try
             {
-                bool ok = await Task.Run(() => AttemptConnectionCore(currentIp));
-                isConnected = ok;
+                Log(null, $"Retrying PLC connection on {currentIp}.\n");
+                PlcConnectionCheckResult result = await Task.Run(() => AttemptConnectionCore(currentIp));
+                isConnected = result.Ok;
                 plcIpAddress = currentIp;
                 string[] opNames = null;
                 Exception opNamesError = null;
 
-                if (ok)
+                if (result.Ok)
                 {
                     try
                     {
@@ -705,9 +774,11 @@ namespace Zimple
 
                 Dispatcher.Invoke(() =>
                 {
-                    UpdateConnectionStatus(ok);
-                    if (ok)
+                    UpdateConnectionStatus(result.Ok);
+                    if (result.Ok)
                     {
+                        lastPlcConnectionIssue = string.Empty;
+                        Log(null, $"PLC reconnect succeeded on {currentIp}.\n");
                         InitializeHeartbeatTimer();
                         InitializeTriggerCheckTimer(currentIp);
 
@@ -720,6 +791,10 @@ namespace Zimple
                         {
                             Log(null, $"Error reading OP names after reconnect: {opNamesError.Message}\n");
                         }
+                    }
+                    else
+                    {
+                        LogPlcConnectionIssue("reconnect", result.Message, true);
                     }
                 });
             }
@@ -865,10 +940,23 @@ namespace Zimple
                                 store.WriteString(statusTag, "ready");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"OP {opName} scan error: {ex.Message}");
-                        }
+	                        catch (Exception ex)
+	                        {
+	                            Console.WriteLine($"OP {opName} scan error: {ex.Message}");
+	                            if (ex is PlcCommunicationException)
+	                            {
+	                                isConnected = false;
+	                                Dispatcher.Invoke(() =>
+	                                {
+	                                    UpdateConnectionStatus(false);
+	                                    LogPlcConnectionIssue("trigger scan", DescribeException(ex), false);
+	                                });
+	                                return;
+	                            }
+
+	                            Dispatcher.Invoke(() =>
+	                                Log(opName, $"PLC scan error while reading trigger/status for {opName}: {DescribeException(ex)}\n"));
+	                        }
                     }
                 });
             }
@@ -2173,6 +2261,28 @@ namespace Zimple
             }
         }
 
+
+        private sealed class PlcConnectionCheckResult
+        {
+            private PlcConnectionCheckResult(bool ok, string message)
+            {
+                Ok = ok;
+                Message = message;
+            }
+
+            public bool Ok { get; }
+            public string Message { get; }
+
+            public static PlcConnectionCheckResult Success()
+            {
+                return new PlcConnectionCheckResult(true, null);
+            }
+
+            public static PlcConnectionCheckResult Fail(string message)
+            {
+                return new PlcConnectionCheckResult(false, message);
+            }
+        }
 
     }
 
