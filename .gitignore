@@ -36,6 +36,7 @@ app.publish/
 Log/
 *.log
 *.log.*
+tools/.exception-smoke/
 
 # OS/editor noise
 .DS_Store
