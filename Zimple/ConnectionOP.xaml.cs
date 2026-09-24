@@ -98,7 +98,6 @@ namespace Zimple
             InitializeComponent();
             LoadSettings();
             this.Loaded += ConnectionOP_Loaded;
-            this.Unloaded += ConnectionOP_Unloaded;
         }
 
         // unica adicao
@@ -307,7 +306,7 @@ namespace Zimple
             StartQueueWorker();
         }
 
-        private void ConnectionOP_Unloaded(object sender, RoutedEventArgs e)
+        public void DisposeConnection()
         {
             ShutdownConnection();
         }

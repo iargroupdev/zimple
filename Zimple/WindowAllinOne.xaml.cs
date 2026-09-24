@@ -26,6 +26,7 @@ namespace Zimple
 
         private void BuildTabs()
         {
+            DisposeExistingConnections();
             tabControlOps.Items.Clear();
 
             if (plcList == null || plcList.Count == 0)
@@ -93,6 +94,24 @@ namespace Zimple
 
             plcList = PlcConfigService.Load();
             BuildTabs();
+        }
+
+
+        private void DisposeExistingConnections()
+        {
+            foreach (TabItem tab in tabControlOps.Items)
+            {
+                if (tab.Content is ConnectionOP uc)
+                {
+                    uc.DisposeConnection();
+                }
+            }
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            DisposeExistingConnections();
+            base.OnClosing(e);
         }
 
         private void ConnectAll_Click(object sender, RoutedEventArgs e)
